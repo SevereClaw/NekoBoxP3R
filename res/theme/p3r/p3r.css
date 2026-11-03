@@ -31,7 +31,7 @@ QLineEdit:focus,QTextEdit:focus,QPlainTextEdit:focus,QSpinBox:focus,QDoubleSpinB
 QLineEdit:read-only{background:#0F2547;color:#9FC3E6;}
 QLineEdit:disabled,QComboBox:disabled,QSpinBox:disabled{color:#5B7A9C;border-color:#16345C;}
 QLineEdit[echoMode="2"]{lineedit-password-character:9679;}
-QLineEdit#search{min-width:180px;padding:5px 8px;border:1px solid #2EE6FF;}
+QLineEdit#search{padding:5px 8px;border:1px solid #2EE6FF;}
 
 QComboBox::drop-down{subcontrol-origin:padding;subcontrol-position:top right;width:22px;border:none;background:#1B4A86;}
 QComboBox::down-arrow{image:url(:/qss/blacksoft/add_bottom.png);width:10px;height:10px;}

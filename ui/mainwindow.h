@@ -274,6 +274,13 @@ private:
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override; // NekoBoxP3R: adaptive top bar
+
+private:
+    int p3r_layout_level = -1;
+    QPushButton *p3r_paste_button = nullptr;
+    QPushButton *p3r_mini_button = nullptr;
+    void p3r_apply_layout_mode(bool force = false);
 
 #endif // MW_INTERFACE
 };

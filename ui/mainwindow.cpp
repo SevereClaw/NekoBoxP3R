@@ -37,6 +37,8 @@
 #endif
 
 #include <QClipboard>
+#include <QResizeEvent>
+#include <QAbstractButton>
 #include <QComboBox>
 #include <QToolButton>
 #include <QSignalBlocker>
@@ -2236,6 +2238,7 @@ void MainWindow::p3r_setup() {
 
     // paste link / subscription: button in the top bar + empty-list screen
     auto pasteButton = new QPushButton(QString::fromUtf8("\uFF0B ") + tr("Paste link"), this);
+    p3r_paste_button = pasteButton;
     pasteButton->setObjectName("p3rPasteButton");
     pasteButton->setToolTip(tr("Add a server link (vless://, vmess://, ss://...) or a subscription link (https://...) from the clipboard"));
     connect(pasteButton, &QPushButton::clicked, this, [=] { p3r_paste_from_clipboard(); });
@@ -2261,10 +2264,12 @@ void MainWindow::p3r_setup() {
 
     // mini mode button
     auto miniButton = new QPushButton(QString::fromUtf8("\u25AD ") + tr("Mini"), this);
+    p3r_mini_button = miniButton;
     miniButton->setObjectName("p3rPasteButton");
     miniButton->setToolTip(tr("Mini mode: a small window on top of all windows"));
     connect(miniButton, &QPushButton::clicked, this, [=] { p3r_set_mini(true); });
     ui->horizontalLayout_2->insertWidget(ui->horizontalLayout_2->indexOf(ui->search), miniButton);
+    QTimer::singleShot(0, this, [=] { p3r_apply_layout_mode(true); });
     p3r_empty = new P3R::EmptyState(ui->proxyListTable);
     connect(p3r_empty, &P3R::EmptyState::pasteClicked, this, [=] { p3r_paste_from_clipboard(); });
     p3r_empty->hide();
@@ -3713,4 +3718,65 @@ void MainWindow::p3r_profile_menu() {
     }
     p3r_profiles_store(profiles);
     p3r_refresh_profile_combo();
+}
+
+// ======================== NekoBoxP3R: adaptive top bar ========================
+
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    QMainWindow::resizeEvent(event);
+    p3r_apply_layout_mode();
+}
+
+void MainWindow::p3r_apply_layout_mode(bool force) {
+    if (p3r_paste_button == nullptr) return; // not set up yet
+    // 0: full labels, 1: compact (icons, short labels), 2: tight (also narrower search / profile)
+    int w = width();
+    int level = w >= 1280 ? 0 : (w >= 960 ? 1 : 2);
+    if (level == p3r_layout_level && !force) return;
+    p3r_layout_level = level;
+    bool compact = level > 0;
+
+    // remember the full texts once
+    auto full = [](QAbstractButton *b) {
+        if (!b->property("p3rFullText").isValid()) b->setProperty("p3rFullText", b->text());
+        return b->property("p3rFullText").toString();
+    };
+    auto tip = [](QAbstractButton *b, const QString &text) {
+        if (!b->property("p3rFullTip").isValid()) b->setProperty("p3rFullTip", b->toolTip());
+        auto original = b->property("p3rFullTip").toString();
+        b->setToolTip(original.isEmpty() ? text : text + "\n" + original);
+    };
+
+    // menu buttons: icon only when narrow
+    for (auto b: QList<QToolButton *>{ui->toolButton_program, ui->toolButton_preferences, ui->toolButton_server,
+                                      ui->toolButton_ads, ui->toolButton_document, ui->toolButton_update}) {
+        auto text = full(b);
+        b->setToolButtonStyle(compact ? Qt::ToolButtonIconOnly : Qt::ToolButtonTextUnderIcon);
+        tip(b, text);
+    }
+    // ping test: short label
+    {
+        auto b = ui->toolButton_url_test;
+        auto text = full(b);
+        b->setText(compact ? QString::fromUtf8("⏱ ") + (level == 2 ? QString() : tr("Ping")) : text);
+        tip(b, text);
+    }
+    // mode switches: short names, full ones in the tooltip
+    {
+        auto vpnText = full(ui->checkBox_VPN), sysText = full(ui->checkBox_SystemProxy);
+        ui->checkBox_VPN->setText(compact ? QString("VPN") : vpnText);
+        ui->checkBox_SystemProxy->setText(compact ? tr("Proxy") : sysText);
+        tip(ui->checkBox_VPN, vpnText);
+        tip(ui->checkBox_SystemProxy, sysText);
+    }
+    // paste / mini: symbols only
+    {
+        auto pasteText = full(p3r_paste_button), miniText = full(p3r_mini_button);
+        p3r_paste_button->setText(compact ? QString::fromUtf8("＋") : pasteText);
+        p3r_mini_button->setText(compact ? QString::fromUtf8("▭") : miniText);
+        tip(p3r_paste_button, pasteText);
+        tip(p3r_mini_button, miniText);
+    }
+    ui->search->setMinimumWidth(level == 0 ? 180 : (level == 1 ? 120 : 80));
+    if (p3r_profile_combo != nullptr) p3r_profile_combo->setMinimumWidth(level == 2 ? 90 : 130);
 }

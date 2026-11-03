@@ -1199,6 +1199,14 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Ping</source>
+        <translation>Пинг</translation>
+    </message>
+    <message>
+        <source>Proxy</source>
+        <translation>Прокси</translation>
+    </message>
+    <message>
         <source>Profile: VPN mode, apps, site rules and server switch with one click</source>
         <translation>Профиль: режим VPN, программы, правила сайтов и сервер переключаются одним кликом</translation>
     </message>
