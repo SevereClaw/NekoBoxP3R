@@ -487,7 +487,7 @@ void MainWindow::neko_stop(bool crash, bool sem) {
     });
 }
 
-void MainWindow::CheckUpdate() {
+void MainWindow::CheckUpdate(bool silent) {
     // on new thread...
 #ifndef NKR_NO_GRPC
     bool ok;
@@ -499,6 +499,7 @@ void MainWindow::CheckUpdate() {
 
     auto err = response.error();
     if (!err.empty()) {
+        if (silent) return;
         runOnUiThread([=] {
             MessageBoxWarning(QObject::tr("Update"), err.c_str());
         });
@@ -506,6 +507,7 @@ void MainWindow::CheckUpdate() {
     }
 
     if (response.release_download_url() == nullptr) {
+        if (silent) return;
         runOnUiThread([=] {
             MessageBoxInfo(QObject::tr("Update"), QObject::tr("No update"));
         });
@@ -513,10 +515,13 @@ void MainWindow::CheckUpdate() {
     }
 
     runOnUiThread([=] {
+        if (p3r_update_dialog_open) return;
+        p3r_update_dialog_open = true;
         auto allow_updater = !NekoGui::dataStore->flag_use_appdata;
         auto note_pre_release = response.is_pre_release() ? " (Pre-release)" : "";
         QMessageBox box(QMessageBox::Question, QObject::tr("Update") + note_pre_release,
-                        QObject::tr("Update found: %1\nRelease note:\n%2").arg(response.assets_name().c_str(), response.release_note().c_str()));
+                        QObject::tr("Update found: %1\nRelease note:\n%2").arg(response.assets_name().c_str(), response.release_note().c_str()) +
+                            "\n\n" + QObject::tr("Current version: %1").arg(P3R_VERSION));
         //
         QAbstractButton *btn1 = nullptr;
         if (allow_updater) {
@@ -525,6 +530,7 @@ void MainWindow::CheckUpdate() {
         QAbstractButton *btn2 = box.addButton(QObject::tr("Open in browser"), QMessageBox::AcceptRole);
         box.addButton(QObject::tr("Close"), QMessageBox::RejectRole);
         box.exec();
+        p3r_update_dialog_open = false;
         //
         if (btn1 == box.clickedButton() && allow_updater) {
             // Download Update

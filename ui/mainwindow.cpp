@@ -1875,6 +1875,31 @@ void MainWindow::p3r_setup() {
         p3r_apply_simple_mode();
     });
 
+    // Updates from the NekoBoxP3R GitHub releases
+    auto actionCheckUpdate = new QAction(tr("Check for updates") + " (v" + P3R_VERSION + ")", this);
+    connect(actionCheckUpdate, &QAction::triggered, this, [=] { runOnNewThread([=] { CheckUpdate(false); }); });
+    auto actionAutoUpdate = new QAction(tr("Check for updates automatically"), this);
+    actionAutoUpdate->setCheckable(true);
+    actionAutoUpdate->setChecked(NekoGui::dataStore->p3r_auto_update);
+    connect(actionAutoUpdate, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_auto_update = checked;
+        NekoGui::dataStore->Save();
+    });
+    ui->menu_program->insertAction(first, actionCheckUpdate);
+    ui->menu_program->insertAction(first, actionAutoUpdate);
+    ui->menu_program->insertSeparator(first);
+
+    auto autoCheck = [=] {
+        if (NekoGui::dataStore->p3r_auto_update && !NekoGui::dataStore->flag_use_appdata) {
+            runOnNewThread([=] { CheckUpdate(true); });
+        }
+    };
+    QTimer::singleShot(20 * 1000, this, autoCheck); // after the core is up
+    auto updateTimer = new QTimer(this);
+    updateTimer->setInterval(6 * 60 * 60 * 1000);
+    connect(updateTimer, &QTimer::timeout, this, autoCheck);
+    updateTimer->start();
+
     p3r_apply_simple_mode();
     p3r_refresh_connect_button();
 }
@@ -1923,7 +1948,6 @@ void MainWindow::p3r_apply_simple_mode() {
     ui->aaaaaaaaaaaaaaaaaa->setVisible(!simple); // log / connections panel
     ui->toolButton_ads->setVisible(!simple);
     ui->toolButton_document->setVisible(!simple);
-    ui->toolButton_update->setVisible(!simple);
     ui->label_inbound->setVisible(!simple);
     ui->proxyListTable->setColumnHidden(0, simple); // Type
     ui->proxyListTable->setColumnHidden(4, simple); // Traffic

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,30 +17,65 @@ import (
 
 var update_download_url string
 
+// NekoBoxP3R: set at build time via -ldflags "-X grpc_server.P3RVersion=..."
+var P3RVersion = "0.0.0"
+
+const P3RRepo = "SevereClaw/NekoBoxP3R"
+
+// compareVersion compares "v1.2.3" style versions: -1 if a<b, 0 if equal, 1 if a>b
+func compareVersion(a, b string) int {
+	pa := strings.Split(strings.TrimPrefix(strings.TrimSpace(a), "v"), ".")
+	pb := strings.Split(strings.TrimPrefix(strings.TrimSpace(b), "v"), ".")
+	for i := 0; i < len(pa) || i < len(pb); i++ {
+		var x, y int
+		if i < len(pa) {
+			x, _ = strconv.Atoi(strings.SplitN(pa[i], "-", 2)[0])
+		}
+		if i < len(pb) {
+			y, _ = strconv.Atoi(strings.SplitN(pb[i], "-", 2)[0])
+		}
+		if x != y {
+			if x < y {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
+}
+
 func (s *BaseServer) Update(ctx context.Context, in *gen.UpdateReq) (*gen.UpdateResp, error) {
 	ret := &gen.UpdateResp{}
 
 	client := neko_common.CreateProxyHttpClient(neko_common.GetCurrentInstance())
 
-	if in.Action == gen.UpdateAction_Check { // Check update
-		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	if in.Action == gen.UpdateAction_Check { // Check update (NekoBoxP3R releases)
+		ctx, cancel := context.WithTimeout(ctx, time.Second*15)
 		defer cancel()
 
-		req, _ := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/repos/MatsuriDayo/nekoray/releases", nil)
+		req, _ := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/repos/"+P3RRepo+"/releases", nil)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("User-Agent", "NekoBoxP3R-updater")
 		resp, err := client.Do(req)
 		if err != nil {
 			ret.Error = err.Error()
 			return ret, nil
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			ret.Error = "GitHub: " + resp.Status
+			return ret, nil
+		}
 
 		v := []struct {
+			TagName string `json:"tag_name"`
 			HtmlUrl string `json:"html_url"`
 			Assets  []struct {
 				Name               string `json:"name"`
 				BrowserDownloadUrl string `json:"browser_download_url"`
 			} `json:"assets"`
 			Prerelease bool   `json:"prerelease"`
+			Draft      bool   `json:"draft"`
 			Body       string `json:"body"`
 		}{}
 		err = json.NewDecoder(resp.Body).Decode(&v)
@@ -48,39 +84,30 @@ func (s *BaseServer) Update(ctx context.Context, in *gen.UpdateReq) (*gen.Update
 			return ret, nil
 		}
 
-		nowVer := strings.TrimLeft(neko_common.Version_neko, "nekoray-")
-
-		var search string
-		if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
-			search = "windows64"
-		} else if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
-			search = "linux64"
-		} else if runtime.GOOS == "darwin" {
-			search = "macos-" + runtime.GOARCH
-		} else {
-			ret.Error = "Not official support platform"
+		if runtime.GOOS != "windows" || runtime.GOARCH != "amd64" {
+			ret.Error = "NekoBoxP3R updates are only built for Windows x64"
 			return ret, nil
 		}
 
+		// newest suitable release
 		for _, release := range v {
-			if len(release.Assets) > 0 {
-				for _, asset := range release.Assets {
-					if strings.Contains(asset.Name, nowVer) {
-						return ret, nil // No update
-					}
-					if strings.Contains(asset.Name, search) {
-						if release.Prerelease && !in.CheckPreRelease {
-							continue
-						}
-						update_download_url = asset.BrowserDownloadUrl
-						ret.AssetsName = asset.Name
-						ret.DownloadUrl = asset.BrowserDownloadUrl
-						ret.ReleaseUrl = release.HtmlUrl
-						ret.ReleaseNote = release.Body
-						ret.IsPreRelease = release.Prerelease
-						return ret, nil // update
-					}
+			if release.Draft || (release.Prerelease && !in.CheckPreRelease) {
+				continue
+			}
+			for _, asset := range release.Assets {
+				if !strings.Contains(asset.Name, "windows64") || !strings.HasSuffix(asset.Name, ".zip") {
+					continue
 				}
+				if compareVersion(release.TagName, P3RVersion) <= 0 {
+					return ret, nil // No update
+				}
+				update_download_url = asset.BrowserDownloadUrl
+				ret.AssetsName = asset.Name
+				ret.DownloadUrl = asset.BrowserDownloadUrl
+				ret.ReleaseUrl = release.HtmlUrl
+				ret.ReleaseNote = release.Body
+				ret.IsPreRelease = release.Prerelease
+				return ret, nil // update
 			}
 		}
 	} else { // Download update

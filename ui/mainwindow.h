@@ -160,6 +160,7 @@ private:
     // NekoBoxP3R
     QPushButton *p3r_connect_button = nullptr;
     QAction *p3r_simple_mode_action = nullptr;
+    bool p3r_update_dialog_open = false;
     void p3r_setup();
     void p3r_connect_clicked();
     void p3r_refresh_connect_button();
@@ -200,7 +201,7 @@ private:
 
     static void stop_core_daemon();
 
-    void CheckUpdate();
+    void CheckUpdate(bool silent = false);
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;

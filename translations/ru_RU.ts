@@ -1074,6 +1074,14 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Check for updates</source>
+        <translation>Проверить обновления</translation>
+    </message>
+    <message>
+        <source>Check for updates automatically</source>
+        <translation>Проверять обновления автоматически</translation>
+    </message>
+    <message>
         <source>All traffic of all programs goes through the proxy (TUN mode). Requires administrator rights.</source>
         <translation>Весь трафик всех программ идёт через прокси (режим TUN). Нужны права администратора.</translation>
     </message>
@@ -1547,6 +1555,10 @@ End: %2</source>
 </context>
 <context>
     <name>QObject</name>
+    <message>
+        <source>Current version: %1</source>
+        <translation>Текущая версия: %1</translation>
+    </message>
     <message>
         <source>Core not found: %1</source>
         <translation>Ядро не найдено: %1</translation>

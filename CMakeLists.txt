@@ -286,6 +286,12 @@ else ()
     qt5_create_translation(QM_FILES ${PROJECT_SOURCES} ${TS_FILES} OPTIONS ${LUPDATE_OPTIONS})
 endif ()
 configure_file(translations/translations.qrc ${CMAKE_BINARY_DIR} COPYONLY)
+
+# NekoBoxP3R version
+file(READ "${CMAKE_SOURCE_DIR}/p3r_version.txt" P3R_VERSION)
+string(STRIP "${P3R_VERSION}" P3R_VERSION)
+target_compile_definitions(nekobox PRIVATE P3R_VERSION="${P3R_VERSION}")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/p3r_version.txt")
 target_sources(nekobox PRIVATE ${CMAKE_BINARY_DIR}/translations.qrc)
 
 # Target Link
