@@ -3,7 +3,6 @@ name: Build NekoBoxP3R (Windows)
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -94,11 +93,33 @@ jobs:
         with:
           name: NekoBoxP3R-windows64
           path: out
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Check version
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(tr -d ' \r\n' < src/p3r_version.txt)
+          echo "tag=v$VER" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ] \
+             && ! gh release view "v$VER" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "release=true" >> $GITHUB_OUTPUT
+          fi
       - name: Zip
-        if: startsWith(github.ref, 'refs/tags/')
-        run: cd out && zip -r ../NekoBoxP3R-${{ github.ref_name }}-windows64.zip nekoray
+        if: steps.ver.outputs.release == 'true'
+        run: cd out && zip -qr ../NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip nekoray
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.ver.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: NekoBoxP3R-${{ github.ref_name }}-windows64.zip
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: NekoBoxP3R ${{ steps.ver.outputs.tag }}
+          body: |
+            NekoBox 4.0.1 в стиле Persona 3: тема интерфейса и новый значок.
+
+            **Установка:** скачай zip, распакуй целиком в новую папку и запусти `nekoray/nekobox.exe`.
+            Чтобы перенести свои серверы, скопируй папку `config` из старой версии; тему выбери в Настройки → Тема → Persona 3.
+          files: NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip
