@@ -1963,10 +1963,10 @@ void MainWindow::p3r_setup() {
         // apply right away: restart the current connection
         if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
     });
-    auto aiVpn = new QCheckBox(tr("AI services via VPN"), this);
+    auto aiVpn = new QCheckBox(tr("AI and Google via VPN"), this);
     aiVpn->setObjectName("p3rAiVpn");
     aiVpn->setChecked(NekoGui::dataStore->p3r_ai_via_vpn);
-    aiVpn->setToolTip(tr("Gemini, Google AI Studio, NotebookLM, ChatGPT, Claude, Perplexity, Copilot, Grok always go through the server,\neven with \"Russian sites directly\" or \"only these apps via VPN\" (these services block Russian IP addresses)."));
+    aiVpn->setToolTip(tr("Gemini, ChatGPT, Claude, Perplexity, Copilot, Grok and all of Google (including YouTube and sign-in) always go through the server,\neven with \"Russian sites directly\" or \"only these apps via VPN\". Google must see one country for all requests, otherwise Gemini shows an error."));
     connect(aiVpn, &QCheckBox::toggled, this, [=](bool checked) {
         NekoGui::dataStore->p3r_ai_via_vpn = checked;
         NekoGui::dataStore->Save();

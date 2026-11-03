@@ -1174,6 +1174,16 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>AI and Google via VPN</source>
+        <translation>ИИ и Google через VPN</translation>
+    </message>
+    <message>
+        <source>Gemini, ChatGPT, Claude, Perplexity, Copilot, Grok and all of Google (including YouTube and sign-in) always go through the server,
+even with "Russian sites directly" or "only these apps via VPN". Google must see one country for all requests, otherwise Gemini shows an error.</source>
+        <translation>Gemini, ChatGPT, Claude, Perplexity, Copilot, Grok и весь Google (включая YouTube и вход в аккаунт) всегда идут через сервер,
+даже при «Российские сайты напрямую» или «только эти программы через VPN». Google должен видеть одну страну для всех запросов, иначе Gemini выдаёт ошибку.</translation>
+    </message>
+    <message>
         <source>AI services via VPN</source>
         <translation>ИИ-сервисы через VPN</translation>
     </message>

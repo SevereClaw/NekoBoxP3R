@@ -69,7 +69,8 @@ namespace NekoGui {
             "domain:gstatic.com", "domain:googleusercontent.com", "domain:play.google.com", "domain:ogs.google.com",
         };
         auto available = P3R_GeositeCodes(FindCoreAsset("geosite.db"));
-        for (const auto &code: {"google-gemini", "google-deepmind", "openai", "anthropic", "perplexity", "category-ai-chat-!cn"}) {
+        // whole Google (+ YouTube): one country for every Google request, otherwise Gemini fails with "Something went wrong"
+        for (const auto &code: {"google-gemini", "google-deepmind", "google", "youtube", "openai", "anthropic", "perplexity", "category-ai-chat-!cn"}) {
             if (available.contains(code)) domains << QString("geosite:") + code;
         }
         return domains;
