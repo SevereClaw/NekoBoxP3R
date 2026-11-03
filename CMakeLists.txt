@@ -164,6 +164,8 @@ set(PROJECT_SOURCES
         ui/Icon.cpp
         ui/p3r/P3RWidgets.cpp
         ui/p3r/P3RWidgets.hpp
+        ui/p3r/P3RElevate.cpp
+        ui/p3r/P3RElevate.hpp
 
         ui/mainwindow_grpc.cpp
         ui/mainwindow.cpp

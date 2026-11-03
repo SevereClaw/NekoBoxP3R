@@ -120,7 +120,8 @@ QDialogButtonBox QPushButton{min-width:80px;}
 QMessageBox{background:#0A1A33;}
 QMessageBox QLabel{color:#EAF6FF;}
 
-/* big CONNECT button is painted in code (ui/p3r/P3RWidgets.cpp) */
+/* big CONNECT button is painted in code (ui/p3r/P3RWidgets.cpp); keep it tall */
+QPushButton#p3rConnectButton{min-height:64px;max-height:80px;padding:0px;margin:0px;border:none;background:transparent;}
 /* server list: bigger, high-contrast text */
 QTableWidget#proxyListTable{font-size:11pt;color:#FFFFFF;background:#081530;alternate-background-color:#0D2448;gridline-color:#102A50;}
 QTableWidget#proxyListTable::item{padding:2px 8px;}

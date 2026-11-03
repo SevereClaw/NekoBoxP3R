@@ -11,6 +11,7 @@
 
 #include "3rdparty/RunGuard.hpp"
 #include "main/NekoGui.hpp"
+#include "ui/p3r/P3RElevate.hpp"
 
 #include "ui/mainwindow_interface.h"
 
@@ -140,6 +141,13 @@ int main(int argc, char* argv[]) {
             return 0;
         }
         // Some Bad System
+#ifdef Q_OS_WIN
+        // NekoBoxP3R: the running instance is elevated, a normal one cannot reach it
+        if (P3R::ElevatedTaskExists()) {
+            QMessageBox::information(nullptr, "NekoBoxP3R", QObject::tr("NekoBoxP3R is already running with administrator rights. Open it from the tray icon."));
+            return 0;
+        }
+#endif
         QMessageBox::warning(nullptr, "NekoGui", "RunGuard disallow to run, use -many to force start.");
         return 0;
     }
@@ -188,6 +196,22 @@ int main(int argc, char* argv[]) {
     if (!isLoaded) {
         NekoGui::dataStore->Save();
     }
+
+#ifdef Q_OS_WIN
+    // NekoBoxP3R: run as admin without UAC through the scheduled task
+    if (NekoGui::dataStore->argv.contains("-p3r_from_task")) {
+        for (const auto &arg: P3R::ElevatedTaskTakeArgs()) {
+            if (arg == "-tray") NekoGui::dataStore->flag_tray = true;
+            if (arg == "-flag_restart_tun_on") NekoGui::dataStore->flag_restart_tun_on = true;
+            if (arg == "-flag_reorder") NekoGui::dataStore->flag_reorder = true;
+        }
+    } else if (NekoGui::dataStore->p3r_elevated_task && !NekoGui::IsAdmin()) {
+        guard.release();
+        if (P3R::ElevatedTaskRun(NekoGui::dataStore->argv.mid(1))) return 0;
+        // the task is gone or failed: continue as a normal instance
+        if (!NekoGui::dataStore->flag_many && !guard.tryToRun(&guard_data_in)) return 0;
+    }
+#endif
 
     // Datastore & Flags
     if (NekoGui::dataStore->start_minimal) NekoGui::dataStore->flag_tray = true;

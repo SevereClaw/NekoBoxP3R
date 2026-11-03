@@ -9,6 +9,7 @@
 #include "sys/AutoRun.hpp"
 
 #include "ui/ThemeManager.hpp"
+#include "ui/p3r/P3RElevate.hpp"
 #include "ui/Icon.hpp"
 #include "ui/edit/dialog_edit_profile.h"
 #include "ui/dialog_basic_settings.h"
@@ -313,6 +314,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     });
     connect(ui->actionRemember_last_proxy, &QAction::triggered, this, [=](bool checked) {
         NekoGui::dataStore->remember_enable = checked;
+        // NekoBoxP3R: remember what is on right now, not only what is turned on later
+        NekoGui::dataStore->remember_spmode.clear();
+        if (checked) {
+            if (NekoGui::dataStore->spmode_vpn) NekoGui::dataStore->remember_spmode << "vpn";
+            if (NekoGui::dataStore->spmode_system_proxy) NekoGui::dataStore->remember_spmode << "system_proxy";
+            if (NekoGui::dataStore->started_id >= 0) NekoGui::dataStore->remember_id = NekoGui::dataStore->started_id;
+        }
         NekoGui::dataStore->Save();
     });
     connect(ui->actionStart_with_system, &QAction::triggered, this, [=](bool checked) {
@@ -700,7 +708,9 @@ void MainWindow::on_menu_exit_triggered() {
             // Tun restart as admin
             arguments << "-flag_restart_tun_on";
 #ifdef Q_OS_WIN
-            WinCommander::runProcessElevated(program, arguments, "", WinCommander::SW_NORMAL, false);
+            if (!(NekoGui::dataStore->p3r_elevated_task && P3R::ElevatedTaskRun(arguments))) {
+                WinCommander::runProcessElevated(program, arguments, "", WinCommander::SW_NORMAL, false);
+            }
 #else
             QProcess::startDetached(program, arguments);
 #endif
@@ -762,10 +772,31 @@ void MainWindow::neko_set_spmode_vpn(bool enable, bool save) {
                     }
 #endif
 #ifdef Q_OS_WIN
-                    auto n = QMessageBox::warning(GetMessageBoxParent(), software_name, tr("Please run NekoBox as admin"), QMessageBox::Yes | QMessageBox::No);
-                    if (n == QMessageBox::Yes) {
+                    if (NekoGui::dataStore->p3r_elevated_task) {
+                        // restart through the scheduled task: no UAC prompt
                         this->exit_reason = 3;
                         on_menu_exit_triggered();
+                    } else {
+                        QMessageBox box(QMessageBox::Question, "NekoBoxP3R",
+                                        tr("\"VPN for all apps\" needs administrator rights.\n\nSet it up once so the program always starts with these rights without asking? Windows will ask for confirmation one time."),
+                                        QMessageBox::NoButton, GetMessageBoxParent());
+                        auto btnAlways = box.addButton(tr("Always, without asking"), QMessageBox::AcceptRole);
+                        auto btnOnce = box.addButton(tr("Only this time"), QMessageBox::AcceptRole);
+                        box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+                        box.exec();
+                        if (box.clickedButton() == btnAlways) {
+                            if (P3R::ElevatedTaskCreate()) {
+                                NekoGui::dataStore->p3r_elevated_task = true;
+                                NekoGui::dataStore->Save();
+                            } else {
+                                MessageBoxWarning("NekoBoxP3R", tr("Could not set it up (the confirmation was cancelled?). Restarting as administrator once."));
+                            }
+                            this->exit_reason = 3;
+                            on_menu_exit_triggered();
+                        } else if (box.clickedButton() == btnOnce) {
+                            this->exit_reason = 3;
+                            on_menu_exit_triggered();
+                        }
                     }
 #endif
                     neko_set_spmode_FAILED
@@ -1926,6 +1957,30 @@ void MainWindow::p3r_setup() {
     });
     auto actionAbout = new QAction(tr("About NekoBoxP3R"), this);
     connect(actionAbout, &QAction::triggered, this, [=] { p3r_show_about(); });
+#ifdef Q_OS_WIN
+    auto actionElevated = new QAction(tr("VPN without the administrator prompt"), this);
+    actionElevated->setCheckable(true);
+    actionElevated->setChecked(NekoGui::dataStore->p3r_elevated_task);
+    actionElevated->setToolTip(tr("Creates a Windows Task Scheduler task once, so the program always starts with administrator rights and VPN works without the UAC window."));
+    connect(actionElevated, &QAction::triggered, this, [=](bool checked) {
+        bool ok = checked ? P3R::ElevatedTaskCreate() : P3R::ElevatedTaskDelete();
+        if (ok) {
+            NekoGui::dataStore->p3r_elevated_task = checked;
+            NekoGui::dataStore->Save();
+            if (checked && !NekoGui::IsAdmin()) {
+                auto q = QMessageBox::question(GetMessageBoxParent(), "NekoBoxP3R", tr("Done. Restart the program now with administrator rights?"));
+                if (q == QMessageBox::Yes) {
+                    this->exit_reason = 3;
+                    on_menu_exit_triggered();
+                }
+            }
+        } else {
+            MessageBoxWarning("NekoBoxP3R", tr("Could not change the setting (the confirmation was cancelled?)."));
+        }
+        actionElevated->setChecked(NekoGui::dataStore->p3r_elevated_task);
+    });
+    ui->menu_program->insertAction(first, actionElevated);
+#endif
     ui->menu_program->insertAction(first, actionSounds);
     ui->menu_program->insertAction(first, actionAnimations);
     ui->menu_program->insertAction(first, actionAbout);
@@ -2086,6 +2141,10 @@ void MainWindow::p3r_apply_clear_names() {
     ui->menu_spmode_system_proxy->setToolTip(ui->checkBox_SystemProxy->toolTip());
     ui->menu_spmode_disabled->setText(tr("Off (only the local port %1)").arg(NekoGui::dataStore->inbound_socks_port));
     ui->menu_spmode_disabled->setToolTip(tr("Nothing is redirected automatically. Programs can still use the proxy if you set 127.0.0.1:%1 in them manually.").arg(NekoGui::dataStore->inbound_socks_port));
+
+    // start-up behaviour
+    ui->actionRemember_last_proxy->setText(tr("Reconnect on start (last server and VPN)"));
+    ui->actionStart_with_system->setText(tr("Start with Windows"));
 
     // start / stop / tests
     ui->menu_program->setToolTipsVisible(true);

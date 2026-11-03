@@ -1113,6 +1113,54 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>&quot;VPN for all apps&quot; needs administrator rights.
+
+Set it up once so the program always starts with these rights without asking? Windows will ask for confirmation one time.</source>
+        <translation>Для «VPN для всех программ» нужны права администратора.
+
+Настроить один раз, чтобы программа всегда запускалась с этими правами без вопросов? Windows один раз попросит подтверждение.</translation>
+    </message>
+    <message>
+        <source>Always, without asking</source>
+        <translation>Всегда, без запроса</translation>
+    </message>
+    <message>
+        <source>Only this time</source>
+        <translation>Только сейчас</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <source>Could not set it up (the confirmation was cancelled?). Restarting as administrator once.</source>
+        <translation>Не получилось настроить (подтверждение отменено?). Перезапускаю от администратора один раз.</translation>
+    </message>
+    <message>
+        <source>VPN without the administrator prompt</source>
+        <translation>VPN без запроса прав администратора</translation>
+    </message>
+    <message>
+        <source>Creates a Windows Task Scheduler task once, so the program always starts with administrator rights and VPN works without the UAC window.</source>
+        <translation>Один раз создаёт задачу в Планировщике Windows, чтобы программа всегда запускалась с правами администратора и VPN работал без окна UAC.</translation>
+    </message>
+    <message>
+        <source>Done. Restart the program now with administrator rights?</source>
+        <translation>Готово. Перезапустить программу сейчас с правами администратора?</translation>
+    </message>
+    <message>
+        <source>Could not change the setting (the confirmation was cancelled?).</source>
+        <translation>Не получилось изменить настройку (подтверждение отменено?).</translation>
+    </message>
+    <message>
+        <source>Reconnect on start (last server and VPN)</source>
+        <translation>Подключаться при запуске (последний сервер и VPN)</translation>
+    </message>
+    <message>
+        <source>Start with Windows</source>
+        <translation>Запускать вместе с Windows</translation>
+    </message>
+    <message>
         <source>Fastest server</source>
         <translation>Самый быстрый</translation>
     </message>
@@ -1720,6 +1768,10 @@ End: %2</source>
 </context>
 <context>
     <name>QObject</name>
+    <message>
+        <source>NekoBoxP3R is already running with administrator rights. Open it from the tray icon.</source>
+        <translation>NekoBoxP3R уже запущен с правами администратора. Открой его через значок в трее.</translation>
+    </message>
     <message>
         <source>Current version: %1</source>
         <translation>Текущая версия: %1</translation>
