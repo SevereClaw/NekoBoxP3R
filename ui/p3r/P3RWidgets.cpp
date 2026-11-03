@@ -242,27 +242,27 @@ namespace P3R {
         auto lines = text().split('\n');
         QColor fg = m_connected ? QColor(Qt::white) : kNavy;
         p.setPen(fg);
-        QFont big = font();
-        big.setFamily("Segoe UI");
-        big.setItalic(true);
-        big.setWeight(QFont::Black);
-        big.setPointSizeF(lines.size() > 1 ? 15 : 17);
-        QFont small = big;
-        small.setWeight(QFont::DemiBold);
-        small.setPointSizeF(9.5);
+        QFont mainFont = font();
+        mainFont.setFamily("Segoe UI");
+        mainFont.setItalic(true);
+        mainFont.setWeight(QFont::Black);
+        mainFont.setPointSizeF(lines.size() > 1 ? 15 : 17);
+        QFont subFont = mainFont;
+        subFont.setWeight(QFont::DemiBold);
+        subFont.setPointSizeF(9.5);
 
         QRectF textRect = r.adjusted(skew + 26, 0, -skew, 0);
         if (lines.size() > 1) {
             QRectF top = textRect;
             top.setBottom(r.center().y() + 6);
-            p.setFont(big);
+            p.setFont(mainFont);
             p.drawText(top, Qt::AlignLeft | Qt::AlignBottom, lines[0]);
             QRectF bottom = textRect.translated(-6, 0);
             bottom.setTop(r.center().y() + 6);
-            p.setFont(small);
+            p.setFont(subFont);
             p.drawText(bottom, Qt::AlignLeft | Qt::AlignTop, lines.mid(1).join(' '));
         } else {
-            p.setFont(big);
+            p.setFont(mainFont);
             p.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, lines.value(0));
         }
 
