@@ -13,4 +13,15 @@ namespace P3R {
     bool ElevatedTaskRun(const QStringList &args);
     // In the instance started by the task: read and remove the handed-over args.
     QStringList ElevatedTaskTakeArgs();
+
+    // Run a console program without a window; returns the exit code or -1.
+    int RunHidden(const QString &program, const QStringList &args, int timeoutMs = 20000);
+
+    // ---- Kill switch (Windows Firewall, needs administrator rights) ----
+    // Block: allow only nekobox_core.exe outbound, block everything else.
+    bool KillSwitchBlock(const QString &corePath);
+    // Unblock: restore the default outbound policy (allow) and remove the rule.
+    bool KillSwitchUnblock();
+    // True while the block is in place (marker file in the config dir).
+    bool KillSwitchActive();
 } // namespace P3R

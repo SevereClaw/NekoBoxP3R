@@ -168,6 +168,17 @@ private:
     bool p3r_speedtest_running();
     void p3r_speedtest_finished();
     void p3r_apply_clear_names();
+    // failover watchdog
+    int p3r_fail_count = 0;
+    bool p3r_failover_pending = false;
+    bool p3r_watchdog_busy = false;
+    qint64 p3r_failover_cooldown_until = 0;
+    bool p3r_test_current(int timeoutMs);
+    void p3r_watchdog_tick();
+    void p3r_notify(const QString &title, const QString &text);
+    // kill switch
+    void p3r_killswitch_on_crash();
+    void p3r_killswitch_release(bool notify);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;
     bool p3r_update_dialog_open = false;

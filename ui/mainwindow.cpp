@@ -37,6 +37,7 @@
 #endif
 
 #include <QClipboard>
+#include <QDateTime>
 #include <QStyle>
 #include <QLabel>
 #include <QTextBlock>
@@ -594,6 +595,7 @@ void MainWindow::dialog_message_impl(const QString &sender, const QString &info)
         if (info == "Crashed") {
             neko_stop();
         } else if (info == "CoreCrashed") {
+            p3r_killswitch_on_crash();
             neko_stop(true);
         } else if (info.startsWith("CoreStarted")) {
             neko_start(info.split(",")[1].toInt());
@@ -661,6 +663,7 @@ void MainWindow::on_commitDataRequest() {
 void MainWindow::on_menu_exit_triggered() {
     if (mu_exit.tryLock()) {
         NekoGui::dataStore->prepare_exit = true;
+        if (P3R::KillSwitchActive()) P3R::KillSwitchUnblock(); // NekoBoxP3R: never leave the internet blocked
         //
         neko_set_spmode_system_proxy(false, false);
         neko_set_spmode_vpn(false, false);
@@ -1996,6 +1999,44 @@ void MainWindow::p3r_setup() {
     });
     ui->menu_program->insertAction(first, actionElevated);
 #endif
+    auto actionFailover = new QAction(tr("Switch server automatically if it stops responding"), this);
+    actionFailover->setCheckable(true);
+    actionFailover->setChecked(NekoGui::dataStore->p3r_failover);
+    actionFailover->setToolTip(tr("Every 20 seconds the current server is checked. If it does not answer twice in a row, the program checks all servers of the group and switches to the fastest one."));
+    connect(actionFailover, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_failover = checked;
+        NekoGui::dataStore->Save();
+    });
+    ui->menu_program->insertAction(first, actionFailover);
+#ifdef Q_OS_WIN
+    auto actionKill = new QAction(tr("Kill switch: block the internet if VPN drops"), this);
+    actionKill->setCheckable(true);
+    actionKill->setChecked(NekoGui::dataStore->p3r_killswitch);
+    actionKill->setToolTip(tr("Works in \"VPN for all apps\" mode. If the connection breaks unexpectedly, Windows Firewall blocks all traffic except the program itself until VPN is back, so nothing leaks past the proxy."));
+    connect(actionKill, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_killswitch = checked;
+        NekoGui::dataStore->Save();
+        if (!checked && P3R::KillSwitchActive()) p3r_killswitch_release(true);
+        // strict routing changes with the kill switch: reconnect to apply
+        if (NekoGui::dataStore->spmode_vpn && NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+    });
+    auto actionUnblock = new QAction(tr("Unblock the internet"), this);
+    actionUnblock->setToolTip(tr("Removes the kill switch block right now."));
+    connect(actionUnblock, &QAction::triggered, this, [=] { p3r_killswitch_release(true); });
+    ui->menu_program->insertAction(first, actionKill);
+    ui->menu_program->insertAction(first, actionUnblock);
+#endif
+    ui->menu_program->insertSeparator(first);
+
+    // failover watchdog
+    auto watchdog = new QTimer(this);
+    watchdog->setInterval(20 * 1000);
+    connect(watchdog, &QTimer::timeout, this, [=] { p3r_watchdog_tick(); });
+    watchdog->start();
+
+    // a block left over from a crash of the program itself
+    if (P3R::KillSwitchActive()) QTimer::singleShot(0, this, [=] { p3r_killswitch_release(false); });
+
     ui->menu_program->insertAction(first, actionSounds);
     ui->menu_program->insertAction(first, actionAnimations);
     ui->menu_program->insertAction(first, actionAbout);
@@ -2063,6 +2104,7 @@ void MainWindow::p3r_refresh_connect_button() {
     }
     if (p3r_connect_button->text() != text) p3r_connect_button->setText(text);
     p3r_connect_button->setConnected(connected);
+    if (connected && P3R::KillSwitchActive()) p3r_killswitch_release(true);
     if (p3r_last_connected != -1 && p3r_last_connected != int(connected)) {
         P3R::PlayFx(connected ? P3R::Sound::Connect : P3R::Sound::Disconnect);
         p3r_connect_button->sweep();
@@ -2119,6 +2161,30 @@ void MainWindow::p3r_connect_best() {
 }
 
 void MainWindow::p3r_speedtest_finished() {
+    if (p3r_failover_pending) {
+        p3r_failover_pending = false;
+        p3r_failover_cooldown_until = QDateTime::currentMSecsSinceEpoch() + 60 * 1000;
+        std::shared_ptr<NekoGui::ProxyEntity> best;
+        auto group = NekoGui::profileManager->CurrentGroup();
+        if (group != nullptr) {
+            for (const auto &profile: group->ProfilesWithOrder()) {
+                if (profile->latency <= 0) continue;
+                if (best == nullptr || profile->latency < best->latency) best = profile;
+            }
+        }
+        if (best == nullptr) {
+            p3r_notify(tr("No server responds"), tr("Maybe the internet is down. I will try again in a minute."));
+            return;
+        }
+        if (running != nullptr && best->id == running->id) {
+            MW_show_log(tr("The current server responds again."));
+            return;
+        }
+        auto oldName = running != nullptr ? running->bean->DisplayName() : QString("?");
+        neko_start(best->id);
+        p3r_notify(tr("Server switched"), tr("%1 stopped responding.\nSwitched to %2 (%3 ms).").arg(oldName, best->bean->DisplayName()).arg(best->latency));
+        return;
+    }
     if (!p3r_best_pending) return;
     p3r_best_pending = false;
     p3r_refresh_connect_button();
@@ -2172,4 +2238,76 @@ void MainWindow::p3r_apply_clear_names() {
     ui->menu_tcp_ping->setToolTip(tr("Only checks that the server port answers. Fast, but a working ping does not guarantee a working server."));
     ui->toolButton_url_test->setText(tr("Check ping"));
     ui->toolButton_url_test->setToolTip(tr("Check the ping of all servers in the current group"));
+}
+
+// ======================== NekoBoxP3R: failover watchdog & kill switch ========================
+
+void MainWindow::p3r_notify(const QString &title, const QString &text) {
+    MW_show_log("[NekoBoxP3R] " + title + ": " + QString(text).replace('\n', ' '));
+    if (tray != nullptr && tray->isVisible()) tray->showMessage(title, text, QSystemTrayIcon::Information, 7000);
+}
+
+void MainWindow::p3r_watchdog_tick() {
+    if (!NekoGui::dataStore->p3r_failover || running == nullptr) {
+        p3r_fail_count = 0;
+        return;
+    }
+    if (p3r_best_pending || p3r_failover_pending || p3r_watchdog_busy || p3r_speedtest_running()) return;
+    if (!NekoGui::dataStore->core_running) return;
+    if (QDateTime::currentMSecsSinceEpoch() < p3r_failover_cooldown_until) return;
+
+    p3r_watchdog_busy = true;
+    auto id = running->id;
+    runOnNewThread([=] {
+        bool alive = p3r_test_current(6000);
+        runOnUiThread([=] {
+            p3r_watchdog_busy = false;
+            if (running == nullptr || running->id != id) {
+                p3r_fail_count = 0;
+                return;
+            }
+            if (alive) {
+                p3r_fail_count = 0;
+                return;
+            }
+            if (++p3r_fail_count < 2) return;
+            p3r_fail_count = 0;
+
+            auto group = NekoGui::profileManager->CurrentGroup();
+            if (group == nullptr || group->archive || group->ProfilesWithOrder().size() < 2 || p3r_speedtest_running()) {
+                p3r_failover_cooldown_until = QDateTime::currentMSecsSinceEpoch() + 60 * 1000;
+                p3r_notify(tr("Server does not respond"), tr("%1 does not answer. There is no other server to switch to.").arg(running->bean->DisplayName()));
+                return;
+            }
+            MW_show_log(tr("[NekoBoxP3R] %1 does not answer, looking for another server...").arg(running->bean->DisplayName()));
+            p3r_failover_pending = true;
+            speedtest_current_group(1, true);
+            // safety: never stay stuck waiting for a test
+            QTimer::singleShot(3 * 60 * 1000, this, [=] {
+                if (p3r_failover_pending && !p3r_speedtest_running()) p3r_failover_pending = false;
+            });
+        });
+    });
+}
+
+void MainWindow::p3r_killswitch_on_crash() {
+#ifdef Q_OS_WIN
+    if (!NekoGui::dataStore->p3r_killswitch || !NekoGui::dataStore->spmode_vpn) return;
+    if (NekoGui::dataStore->prepare_exit || !NekoGui::IsAdmin()) return;
+    if (P3R::KillSwitchActive()) return;
+    if (P3R::KillSwitchBlock(NekoGui::FindNekoBoxCoreRealPath() + ".exe")) {
+        p3r_notify(tr("VPN connection lost"), tr("The internet is blocked until VPN is back, so nothing goes past the proxy.\nTo unblock now: Program -> Unblock the internet."));
+    } else {
+        p3r_notify(tr("Kill switch did not work"), tr("Could not block the internet through Windows Firewall."));
+    }
+#endif
+}
+
+void MainWindow::p3r_killswitch_release(bool notify) {
+    if (!P3R::KillSwitchActive()) return;
+    if (P3R::KillSwitchUnblock()) {
+        if (notify) p3r_notify(tr("Internet unblocked"), running != nullptr ? tr("VPN is back.") : tr("The kill switch block was removed."));
+    } else {
+        p3r_notify(tr("Could not unblock the internet"), tr("Start the program as administrator and use Program -> Unblock the internet."));
+    }
 }

@@ -114,6 +114,8 @@ namespace NekoGui {
         bool p3r_auto_best = true;   // NekoBoxP3R: connect button picks the fastest server
         bool p3r_elevated_task = false; // NekoBoxP3R: relaunch as admin via Task Scheduler (no UAC)
         bool p3r_ru_direct = true;      // NekoBoxP3R: Russian sites bypass the proxy
+        bool p3r_failover = true;       // NekoBoxP3R: switch to the fastest server when the current one dies
+        bool p3r_killswitch = false;    // NekoBoxP3R: block internet if VPN drops unexpectedly
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

@@ -1113,6 +1113,102 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>No server responds</source>
+        <translation>Ни один сервер не отвечает</translation>
+    </message>
+    <message>
+        <source>Maybe the internet is down. I will try again in a minute.</source>
+        <translation>Возможно, пропал интернет. Попробую снова через минуту.</translation>
+    </message>
+    <message>
+        <source>The current server responds again.</source>
+        <translation>Текущий сервер снова отвечает.</translation>
+    </message>
+    <message>
+        <source>Server switched</source>
+        <translation>Сервер переключён</translation>
+    </message>
+    <message>
+        <source>%1 stopped responding.
+Switched to %2 (%3 ms).</source>
+        <translation>%1 перестал отвечать.
+Переключился на %2 (%3 мс).</translation>
+    </message>
+    <message>
+        <source>Switch server automatically if it stops responding</source>
+        <translation>Автопереключение, если сервер перестал отвечать</translation>
+    </message>
+    <message>
+        <source>Every 20 seconds the current server is checked. If it does not answer twice in a row, the program checks all servers of the group and switches to the fastest one.</source>
+        <translation>Каждые 20 секунд проверяется текущий сервер. Если он дважды подряд не ответил, программа проверяет все серверы группы и переключается на самый быстрый.</translation>
+    </message>
+    <message>
+        <source>Kill switch: block the internet if VPN drops</source>
+        <translation>Kill switch: блокировать интернет при обрыве VPN</translation>
+    </message>
+    <message>
+        <source>Works in "VPN for all apps" mode. If the connection breaks unexpectedly, Windows Firewall blocks all traffic except the program itself until VPN is back, so nothing leaks past the proxy.</source>
+        <translation>Работает в режиме «VPN для всех программ». Если соединение неожиданно оборвалось, брандмауэр Windows блокирует весь трафик, кроме самой программы, пока VPN не вернётся. Так ничего не уйдёт мимо прокси.</translation>
+    </message>
+    <message>
+        <source>Unblock the internet</source>
+        <translation>Разблокировать интернет</translation>
+    </message>
+    <message>
+        <source>Removes the kill switch block right now.</source>
+        <translation>Сразу снимает блокировку kill switch.</translation>
+    </message>
+    <message>
+        <source>Server does not respond</source>
+        <translation>Сервер не отвечает</translation>
+    </message>
+    <message>
+        <source>%1 does not answer. There is no other server to switch to.</source>
+        <translation>%1 не отвечает. Переключиться не на что.</translation>
+    </message>
+    <message>
+        <source>[NekoBoxP3R] %1 does not answer, looking for another server...</source>
+        <translation>[NekoBoxP3R] %1 не отвечает, ищу другой сервер...</translation>
+    </message>
+    <message>
+        <source>VPN connection lost</source>
+        <translation>Соединение VPN потеряно</translation>
+    </message>
+    <message>
+        <source>The internet is blocked until VPN is back, so nothing goes past the proxy.
+To unblock now: Program -&gt; Unblock the internet.</source>
+        <translation>Интернет заблокирован, пока VPN не вернётся, чтобы ничего не ушло мимо прокси.
+Снять сразу: Программа → Разблокировать интернет.</translation>
+    </message>
+    <message>
+        <source>Kill switch did not work</source>
+        <translation>Kill switch не сработал</translation>
+    </message>
+    <message>
+        <source>Could not block the internet through Windows Firewall.</source>
+        <translation>Не удалось заблокировать интернет через брандмауэр Windows.</translation>
+    </message>
+    <message>
+        <source>Internet unblocked</source>
+        <translation>Интернет разблокирован</translation>
+    </message>
+    <message>
+        <source>VPN is back.</source>
+        <translation>VPN снова работает.</translation>
+    </message>
+    <message>
+        <source>The kill switch block was removed.</source>
+        <translation>Блокировка kill switch снята.</translation>
+    </message>
+    <message>
+        <source>Could not unblock the internet</source>
+        <translation>Не удалось разблокировать интернет</translation>
+    </message>
+    <message>
+        <source>Start the program as administrator and use Program -&gt; Unblock the internet.</source>
+        <translation>Запусти программу от администратора и выбери Программа → Разблокировать интернет.</translation>
+    </message>
+    <message>
         <source>Russian sites directly</source>
         <translation>Российские сайты напрямую</translation>
     </message>

@@ -60,6 +60,22 @@ inline QList<QThread *> speedtesting_threads = {};
 
 bool MainWindow::p3r_speedtest_running() { return speedtesting; }
 
+// NekoBoxP3R: is the running connection alive? (URL test through the current instance)
+bool MainWindow::p3r_test_current(int timeoutMs) {
+#ifndef NKR_NO_GRPC
+    libcore::TestReq req;
+    req.set_mode(libcore::UrlTest);
+    req.set_timeout(timeoutMs);
+    req.set_url(NekoGui::dataStore->test_latency_url.toStdString());
+    bool rpcOK;
+    auto result = defaultClient->Test(&rpcOK, req);
+    if (!rpcOK) return true; // core/RPC problem, not a dead server
+    return result.error().empty() && result.ms() > 0;
+#else
+    return true;
+#endif
+}
+
 void MainWindow::speedtest_current_group(int mode, bool test_group) {
     if (speedtesting) {
         MessageBoxWarning(software_name, QObject::tr("The last speed test did not exit completely, please wait. If it persists, please restart the program."));

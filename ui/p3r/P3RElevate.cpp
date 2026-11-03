@@ -18,7 +18,7 @@ namespace P3R {
     static const char *kArgsFile = "p3r_elevate_args.txt"; // relative to the config dir (current dir)
 
 #ifdef Q_OS_WIN
-    static int runHidden(const QString &program, const QStringList &args, int timeoutMs = 20000) {
+    static int runHidden(const QString &program, const QStringList &args, int timeoutMs) {
         QProcess p;
         p.setProgram(program);
         p.setArguments(args);
@@ -40,7 +40,7 @@ namespace P3R {
 
     bool ElevatedTaskExists() {
 #ifdef Q_OS_WIN
-        return runHidden("schtasks", {"/Query", "/TN", kTaskName}) == 0;
+        return runHidden("schtasks", {"/Query", "/TN", kTaskName}, 20000) == 0;
 #else
         return false;
 #endif
@@ -86,7 +86,7 @@ namespace P3R {
             f.write(args.join('\n').toUtf8());
             f.close();
         }
-        if (runHidden("schtasks", {"/Run", "/TN", kTaskName}) == 0) return true;
+        if (runHidden("schtasks", {"/Run", "/TN", kTaskName}, 20000) == 0) return true;
         QFile::remove(kArgsFile);
         return false;
 #else
@@ -102,6 +102,59 @@ namespace P3R {
         f.close();
         f.remove();
         return list;
+    }
+
+    int RunHidden(const QString &program, const QStringList &args, int timeoutMs) {
+#ifdef Q_OS_WIN
+        return runHidden(program, args, timeoutMs);
+#else
+        QProcess p;
+        p.start(program, args);
+        if (!p.waitForFinished(timeoutMs)) return -1;
+        return p.exitCode();
+#endif
+    }
+
+    // ======================================================== kill switch
+
+    static const char *kKsMarker = "p3r_killswitch_on";
+    static const char *kKsRule = "NekoBoxP3R-KillSwitch-Core"; // no spaces: safe for netsh argument parsing
+
+    bool KillSwitchActive() {
+        return QFile::exists(kKsMarker);
+    }
+
+    bool KillSwitchBlock(const QString &corePath) {
+#ifdef Q_OS_WIN
+        auto core = QDir::toNativeSeparators(corePath);
+        runHidden("netsh", {"advfirewall", "firewall", "delete", "rule", QString("name=") + kKsRule}, 15000);
+        int r1 = runHidden("netsh", {"advfirewall", "firewall", "add", "rule", QString("name=") + kKsRule,
+                                     "dir=out", "action=allow", "enable=yes", "program=" + core},
+                           15000);
+        int r2 = runHidden("netsh", {"advfirewall", "set", "allprofiles", "firewallpolicy", "blockinbound,blockoutbound"}, 15000);
+        if (r1 == 0 && r2 == 0) {
+            QFile f(kKsMarker);
+            if (f.open(QIODevice::WriteOnly)) f.close();
+            return true;
+        }
+        KillSwitchUnblock();
+        return false;
+#else
+        Q_UNUSED(corePath)
+        return false;
+#endif
+    }
+
+    bool KillSwitchUnblock() {
+#ifdef Q_OS_WIN
+        int r = runHidden("netsh", {"advfirewall", "set", "allprofiles", "firewallpolicy", "blockinbound,allowoutbound"}, 15000);
+        runHidden("netsh", {"advfirewall", "firewall", "delete", "rule", QString("name=") + kKsRule}, 15000);
+        if (r == 0) QFile::remove(kKsMarker);
+        return r == 0;
+#else
+        QFile::remove(kKsMarker);
+        return true;
+#endif
     }
 
 } // namespace P3R
