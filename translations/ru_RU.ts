@@ -1199,6 +1199,28 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>DNS leak protection</source>
+        <translation>Защита от утечки DNS</translation>
+    </message>
+    <message>
+        <source>In "VPN for all apps" mode Windows sends DNS queries through every network adapter, so your provider sees which sites you open.
+This turns on strict routing: Windows Firewall rules keep DNS inside the tunnel.</source>
+        <translation>В режиме «VPN для всех программ» Windows отправляет DNS-запросы через все сетевые адаптеры, и провайдер видит, какие сайты ты открываешь.
+Эта настройка включает строгую маршрутизацию: правила брандмауэра Windows держат DNS внутри туннеля.</translation>
+    </message>
+    <message>
+        <source>As intended: "only these apps via VPN" is on, so the browser goes directly. AI services and Google still go via VPN (see below). Add the browser in "Apps..." if sites should see the VPN country.</source>
+        <translation>Так и задумано: включено «только эти программы через VPN», поэтому браузер идёт напрямую. ИИ-сервисы и Google всё равно идут через VPN (см. ниже). Если сайты должны видеть страну VPN — добавь браузер в «Программы...».</translation>
+    </message>
+    <message>
+        <source>Protection is on but the leak is still there: reconnect (press DISCONNECT and CONNECT) so the new rules apply, then check again.</source>
+        <translation>Защита включена, но утечка ещё есть: переподключись (ОТКЛЮЧИТЬСЯ → ПОДКЛЮЧИТЬСЯ), чтобы применились новые правила, и проверь снова.</translation>
+    </message>
+    <message>
+        <source>Windows sends DNS around the tunnel. Turn on Program -&gt; "DNS leak protection" and reconnect.</source>
+        <translation>Windows отправляет DNS мимо туннеля. Включи Программа → «Защита от утечки DNS» и переподключись.</translation>
+    </message>
+    <message>
         <source>[NekoBoxP3R] Updating subscriptions (last update was long ago)</source>
         <translation>[NekoBoxP3R] Обновляю подписки (последнее обновление было давно)</translation>
     </message>

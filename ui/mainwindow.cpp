@@ -2147,6 +2147,16 @@ void MainWindow::p3r_setup() {
     auto actionUnblock = new QAction(tr("Unblock the internet"), this);
     actionUnblock->setToolTip(tr("Removes the kill switch block right now."));
     connect(actionUnblock, &QAction::triggered, this, [=] { p3r_killswitch_release(true); });
+    auto actionDns = new QAction(tr("DNS leak protection"), this);
+    actionDns->setCheckable(true);
+    actionDns->setChecked(NekoGui::dataStore->p3r_dns_protect);
+    actionDns->setToolTip(tr("In \"VPN for all apps\" mode Windows sends DNS queries through every network adapter, so your provider sees which sites you open.\nThis turns on strict routing: Windows Firewall rules keep DNS inside the tunnel."));
+    connect(actionDns, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_dns_protect = checked;
+        NekoGui::dataStore->Save();
+        if (NekoGui::dataStore->spmode_vpn && NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+    });
+    ui->menu_program->insertAction(first, actionDns);
     ui->menu_program->insertAction(first, actionKill);
     ui->menu_program->insertAction(first, actionUnblock);
 #endif
@@ -3302,6 +3312,9 @@ void MainWindow::p3r_show_diagnostics() {
                 auto detail = QString("%1 %2 (%3)").arg(j["country"].toString(), j["city"].toString(), j["ip"].toString());
                 if (country.isEmpty()) {
                     setRow(row, 1, tr("Country that sites see"), tr("could not check"), r.error);
+                } else if (country == "RU" && NekoGui::dataStore->p3r_app_mode == 2 && connected) {
+                    setRow(row, 3, tr("Country that sites see"), detail,
+                           tr("As intended: \"only these apps via VPN\" is on, so the browser goes directly. AI services and Google still go via VPN (see below). Add the browser in \"Apps...\" if sites should see the VPN country."));
                 } else if (country == "RU") {
                     QString advice;
                     if (!vpn && !sysProxy) advice = tr("Neither \"VPN for all apps\" nor \"Browser and proxy-aware apps\" is on: the browser goes without the proxy.");
@@ -3410,18 +3423,25 @@ void MainWindow::p3r_show_diagnostics() {
                         if (--(*pending) != 0) return;
                         http("https://bash.ws/dnsleak/test/" + id + "?json", P3RRoute::Direct, 10000, [=](const P3RHttpResult &r2) {
                             if (!stillHere()) return;
-                            QStringList servers;
+                            QStringList order;
+                            QMap<QString, int> counts;
                             bool russian = false;
                             for (const auto &v: QJsonDocument::fromJson(r2.body).array()) {
                                 auto o = v.toObject();
                                 if (o["type"].toString() != "dns") continue;
                                 auto c = o["country_name"].toString();
-                                servers << QString("%1 (%2)").arg(o["asn"].toString(), c);
+                                auto key = QString("%1 (%2)").arg(o["asn"].toString(), c);
+                                if (!counts.contains(key)) order << key;
+                                counts[key]++;
                                 if (c == "Russia" || o["country"].toString() == "RU") russian = true;
                             }
+                            QStringList servers;
+                            for (const auto &k: order) servers << (counts[k] > 1 ? QString("%1 \u00D7%2").arg(k).arg(counts[k]) : k);
                             if (servers.isEmpty()) setRow(row, 1, tr("DNS leak"), tr("could not check"));
                             else if (russian) setRow(row, 2, tr("DNS leak"), tr("DNS goes through Russia: %1").arg(servers.join(", ")),
-                                                     tr("Sites you open are visible to the Russian DNS. Use \"VPN for all apps\" and check Preferences -> DNS (remote DNS)."));
+                                                     NekoGui::dataStore->p3r_dns_protect
+                                                         ? tr("Protection is on but the leak is still there: reconnect (press DISCONNECT and CONNECT) so the new rules apply, then check again.")
+                                                         : tr("Windows sends DNS around the tunnel. Turn on Program -> \"DNS leak protection\" and reconnect."));
                             else setRow(row, 0, tr("DNS leak"), tr("no leak: %1").arg(servers.join(", ")));
                             next();
                         });

@@ -508,7 +508,7 @@ namespace NekoGui {
             inboundObj["endpoint_independent_nat"] = true;
             inboundObj["mtu"] = dataStore->vpn_mtu;
             inboundObj["stack"] = Preset::SingBox::VpnImplementation.value(dataStore->vpn_implementation);
-            inboundObj["strict_route"] = dataStore->vpn_strict_route || dataStore->p3r_killswitch; // NekoBoxP3R
+            inboundObj["strict_route"] = dataStore->vpn_strict_route || dataStore->p3r_killswitch || dataStore->p3r_dns_protect; // NekoBoxP3R
             inboundObj["inet4_address"] = "172.19.0.1/28";
             if (dataStore->vpn_ipv6) inboundObj["inet6_address"] = "fdfe:dcba:9876::1/126";
             if (dataStore->routing->sniffing_mode != SniffingMode::DISABLE) {
@@ -880,7 +880,7 @@ namespace NekoGui {
                           .replace("%MTU%", Int2String(dataStore->vpn_mtu))
                           .replace("%STACK%", Preset::SingBox::VpnImplementation.value(dataStore->vpn_implementation))
                           .replace("%TUN_NAME%", genTunName())
-                          .replace("%STRICT_ROUTE%", (dataStore->vpn_strict_route || dataStore->p3r_killswitch) ? "true" : "false")
+                          .replace("%STRICT_ROUTE%", (dataStore->vpn_strict_route || dataStore->p3r_killswitch || dataStore->p3r_dns_protect) ? "true" : "false")
                           .replace("%FINAL_OUT%", no_match_out)
                           .replace("%DNS_ADDRESS%", BOX_UNDERLYING_DNS)
                           .replace("%FAKE_DNS_INBOUND%", dataStore->fake_dns ? "tun-in" : "empty")
