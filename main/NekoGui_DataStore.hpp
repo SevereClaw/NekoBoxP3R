@@ -113,6 +113,7 @@ namespace NekoGui {
         bool p3r_animations = true;  // NekoBoxP3R
         bool p3r_auto_best = true;   // NekoBoxP3R: connect button picks the fastest server
         bool p3r_elevated_task = false; // NekoBoxP3R: relaunch as admin via Task Scheduler (no UAC)
+        bool p3r_ru_direct = true;      // NekoBoxP3R: Russian sites bypass the proxy
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

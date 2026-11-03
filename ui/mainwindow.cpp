@@ -1903,9 +1903,23 @@ void MainWindow::p3r_setup() {
         NekoGui::dataStore->Save();
         p3r_refresh_connect_button();
     });
+    auto ruDirect = new QCheckBox(tr("Russian sites directly"), this);
+    ruDirect->setObjectName("p3rRuDirect");
+    ruDirect->setChecked(NekoGui::dataStore->p3r_ru_direct);
+    ruDirect->setToolTip(tr("Sites in .ru / .su / .рф, Russian services (Gosuslugi, banks, Yandex, VK, Mail.ru) and Russian IP addresses open without the proxy.\nEverything else goes through the server."));
+    connect(ruDirect, &QCheckBox::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_ru_direct = checked;
+        NekoGui::dataStore->Save();
+        // apply right away: restart the current connection
+        if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+    });
+    auto optionsCol = new QVBoxLayout;
+    optionsCol->setSpacing(2);
+    optionsCol->addWidget(p3r_auto_best_check);
+    optionsCol->addWidget(ruDirect);
     auto connectRow = new QHBoxLayout;
     connectRow->addWidget(p3r_connect_button, 1);
-    connectRow->addWidget(p3r_auto_best_check);
+    connectRow->addLayout(optionsCol);
     ui->verticalLayout_3->insertLayout(2, connectRow);
     connect(p3r_connect_button, &QPushButton::clicked, this, [=] { p3r_connect_clicked(); });
 

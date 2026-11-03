@@ -11,6 +11,65 @@
 
 namespace NekoGui {
 
+    // NekoBoxP3R: list of codes inside a sing-box geosite.db (format: version, uvarint count, [string code, uvarint index, uvarint length]...)
+    static QStringList P3R_GeositeCodes(const QString &path) {
+        static QString cachedPath;
+        static qint64 cachedSize = -1;
+        static QStringList cached;
+        QFileInfo info(path);
+        if (path == cachedPath && info.size() == cachedSize) return cached;
+        QStringList codes;
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly)) {
+            QByteArray b = f.read(256 * 1024); // the index is at the start of the file
+            int i = 1;                         // skip version byte
+            auto uvarint = [&](bool &ok) -> quint64 {
+                quint64 r = 0;
+                int shift = 0;
+                while (i < b.size() && shift < 64) {
+                    auto c = static_cast<quint8>(b[i++]);
+                    r |= quint64(c & 0x7f) << shift;
+                    if (c < 0x80) return r;
+                    shift += 7;
+                }
+                ok = false;
+                return 0;
+            };
+            bool ok = b.size() > 1;
+            auto n = ok ? uvarint(ok) : 0;
+            for (quint64 k = 0; ok && k < n; k++) {
+                auto len = uvarint(ok);
+                if (!ok || i + int(len) > b.size()) break;
+                codes << QString::fromUtf8(b.mid(i, int(len)));
+                i += int(len);
+                uvarint(ok);
+                uvarint(ok);
+            }
+        }
+        cachedPath = path;
+        cachedSize = info.size();
+        cached = codes;
+        return codes;
+    }
+
+    // NekoBoxP3R: "Russian sites directly" rule lists
+    static void P3R_AddRussianDirect(const std::shared_ptr<BuildConfigStatus> &status) {
+        QStringList domains = {
+            "domain:ru", "domain:su", "domain:xn--p1ai", // .ru .su .рф
+            "domain:xn--d1acj3b", "domain:xn--80adxhks", // .дети .москва
+            "domain:moscow", "domain:tatar",
+        };
+        auto available = P3R_GeositeCodes(FindCoreAsset("geosite.db"));
+        for (const auto &code: {"category-ru", "category-gov-ru", "yandex", "vk", "mailru"}) {
+            if (available.contains(code)) domains << QString("geosite:") + code;
+        }
+        for (const auto &d: domains) {
+            if (dataStore->routing->dns_routing) status->domainListDNSDirect += d;
+            status->domainListDirect += d;
+        }
+        status->ipListDirect += "geoip:ru";
+    }
+
     QStringList getAutoBypassExternalProcessPaths(const std::shared_ptr<BuildConfigResult> &result) {
         QStringList paths;
         for (const auto &extR: result->extRs) {
@@ -470,6 +529,7 @@ namespace NekoGui {
         if (!status->forTest) {
             DOMAIN_USER_RULE
             IP_USER_RULE
+            if (dataStore->p3r_ru_direct) P3R_AddRussianDirect(status);
         }
 
         // sing-box common rule object

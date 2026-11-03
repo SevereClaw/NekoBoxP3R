@@ -1113,6 +1113,16 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Russian sites directly</source>
+        <translation>Российские сайты напрямую</translation>
+    </message>
+    <message>
+        <source>Sites in .ru / .su / .рф, Russian services (Gosuslugi, banks, Yandex, VK, Mail.ru) and Russian IP addresses open without the proxy.
+Everything else goes through the server.</source>
+        <translation>Сайты в зонах .ru / .su / .рф, российские сервисы (Госуслуги, банки, Яндекс, VK, Mail.ru) и российские IP-адреса открываются без прокси.
+Всё остальное идёт через сервер.</translation>
+    </message>
+    <message>
         <source>Not connected</source>
         <translation>Не подключено</translation>
     </message>

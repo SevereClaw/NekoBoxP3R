@@ -251,6 +251,7 @@ namespace NekoGui {
         _add(new configItem("p3r_animations", &p3r_animations, itemType::boolean));
         _add(new configItem("p3r_auto_best", &p3r_auto_best, itemType::boolean));
         _add(new configItem("p3r_elevated_task", &p3r_elevated_task, itemType::boolean));
+        _add(new configItem("p3r_ru_direct", &p3r_ru_direct, itemType::boolean));
         _add(new configItem("last_started_id", &last_started_id, itemType::integer));
         _add(new configItem("custom_inbound", &custom_inbound, itemType::string));
         _add(new configItem("custom_route", &custom_route_global, itemType::string));
