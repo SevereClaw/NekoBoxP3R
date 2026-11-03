@@ -205,6 +205,11 @@ private:
     // subscription remaining traffic / expiry
     void p3r_update_group_tabs();
     void p3r_check_subscriptions();
+    // diagnostics & tray
+    void p3r_show_diagnostics();
+    QMenu *p3r_tray_menu = nullptr;
+    void p3r_setup_tray();
+    void p3r_fill_tray_menu();
     bool p3r_pick_running_apps(QStringList &out);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;

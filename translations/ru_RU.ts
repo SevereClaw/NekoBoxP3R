@@ -1174,6 +1174,202 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Check everything</source>
+        <translation>Проверить всё</translation>
+    </message>
+    <message>
+        <source>Checks internet, server, which country sites and Google see, Gemini / YouTube / ChatGPT and IPv6 / DNS leaks</source>
+        <translation>Проверяет интернет, сервер, какую страну видят сайты и Google, Gemini / YouTube / ChatGPT и утечки IPv6 / DNS</translation>
+    </message>
+    <message>
+        <source>Check that everything works...</source>
+        <translation>Проверить, всё ли работает...</translation>
+    </message>
+    <message>
+        <source>Check that everything works</source>
+        <translation>Проверка: всё ли работает</translation>
+    </message>
+    <message>
+        <source>The checks go the same way as your browser traffic.</source>
+        <translation>Проверки идут тем же путём, что и трафик браузера.</translation>
+    </message>
+    <message>
+        <source>Check again</source>
+        <translation>Проверить снова</translation>
+    </message>
+    <message>
+        <source>Copy report</source>
+        <translation>Скопировать отчёт</translation>
+    </message>
+    <message>
+        <source>Internet</source>
+        <translation>Интернет</translation>
+    </message>
+    <message>
+        <source>works (%1 ms)</source>
+        <translation>работает (%1 мс)</translation>
+    </message>
+    <message>
+        <source>works</source>
+        <translation>работает</translation>
+    </message>
+    <message>
+        <source>no connection</source>
+        <translation>нет соединения</translation>
+    </message>
+    <message>
+        <source>Check the cable / Wi-Fi. Nothing else will work without it.</source>
+        <translation>Проверь кабель или Wi-Fi. Без интернета ничего не заработает.</translation>
+    </message>
+    <message>
+        <source>not connected</source>
+        <translation>не подключено</translation>
+    </message>
+    <message>
+        <source>Press CONNECT. The other checks will show your real (Russian) IP.</source>
+        <translation>Нажми ПОДКЛЮЧИТЬСЯ. Остальные проверки покажут твой настоящий (российский) IP.</translation>
+    </message>
+    <message>
+        <source>%1 answers (%2 ms)</source>
+        <translation>%1 отвечает (%2 мс)</translation>
+    </message>
+    <message>
+        <source>%1 does not answer</source>
+        <translation>%1 не отвечает</translation>
+    </message>
+    <message>
+        <source>Choose another server or press CONNECT with "Fastest server" on.</source>
+        <translation>Выбери другой сервер или нажми ПОДКЛЮЧИТЬСЯ с галочкой «Самый быстрый».</translation>
+    </message>
+    <message>
+        <source>Country that sites see</source>
+        <translation>Страна, которую видят сайты</translation>
+    </message>
+    <message>
+        <source>could not check</source>
+        <translation>не удалось проверить</translation>
+    </message>
+    <message>
+        <source>Neither "VPN for all apps" nor "Browser and proxy-aware apps" is on: the browser goes without the proxy.</source>
+        <translation>Не включены ни «VPN для всех программ», ни «Браузер и программы с прокси»: браузер идёт без прокси.</translation>
+    </message>
+    <message>
+        <source>"Only these apps via VPN" is on and the browser is not in the list. Add it in "Apps...".</source>
+        <translation>Включено «только эти программы через VPN», а браузера в списке нет. Добавь его в «Программы...».</translation>
+    </message>
+    <message>
+        <source>Not connected.</source>
+        <translation>Не подключено.</translation>
+    </message>
+    <message>
+        <source>The server itself may be in Russia or have a Russian IP. Choose a server in another country.</source>
+        <translation>Сам сервер, похоже, в России или с российским IP. Выбери сервер другой страны.</translation>
+    </message>
+    <message>
+        <source>Region for Google</source>
+        <translation>Регион для Google</translation>
+    </message>
+    <message>
+        <source>Google considers your location unsupported</source>
+        <translation>Google считает твой регион неподдерживаемым</translation>
+    </message>
+    <message>
+        <source>Google thinks this IP is in Russia (or another blocked country). Choose a server of another country/provider; turn on "AI and Google via VPN".</source>
+        <translation>Google считает этот IP российским (или из другой заблокированной страны). Выбери сервер другой страны или провайдера; включи «ИИ и Google через VPN».</translation>
+    </message>
+    <message>
+        <source>Google lets you in</source>
+        <translation>Google пускает</translation>
+    </message>
+    <message>
+        <source>Google does not answer</source>
+        <translation>Google не отвечает</translation>
+    </message>
+    <message>
+        <source>opens (%1 ms)</source>
+        <translation>открывается (%1 мс)</translation>
+    </message>
+    <message>
+        <source>does not open</source>
+        <translation>не открывается</translation>
+    </message>
+    <message>
+        <source>OpenAI considers your country unsupported</source>
+        <translation>OpenAI считает твою страну неподдерживаемой</translation>
+    </message>
+    <message>
+        <source>Choose a server in another country.</source>
+        <translation>Выбери сервер другой страны.</translation>
+    </message>
+    <message>
+        <source>available (%1 ms)</source>
+        <translation>доступен (%1 мс)</translation>
+    </message>
+    <message>
+        <source>IPv6 leak</source>
+        <translation>Утечка IPv6</translation>
+    </message>
+    <message>
+        <source>checked only in "VPN for all apps" mode</source>
+        <translation>проверяется только в режиме «VPN для всех программ»</translation>
+    </message>
+    <message>
+        <source>IPv6 goes around VPN (%1)</source>
+        <translation>IPv6 идёт мимо VPN (%1)</translation>
+    </message>
+    <message>
+        <source>Turn on IPv6 in Preferences -&gt; VPN (Tun) settings, or disable IPv6 in the Windows network adapter.</source>
+        <translation>Включи IPv6 в Настройки → Настройки VPN (Tun) или отключи IPv6 в свойствах сетевого адаптера Windows.</translation>
+    </message>
+    <message>
+        <source>IPv6 goes through VPN</source>
+        <translation>IPv6 идёт через VPN</translation>
+    </message>
+    <message>
+        <source>no leak (no direct IPv6)</source>
+        <translation>утечки нет (прямого IPv6 нет)</translation>
+    </message>
+    <message>
+        <source>DNS leak</source>
+        <translation>Утечка DNS</translation>
+    </message>
+    <message>
+        <source>checked only in "VPN for all apps" mode (with the proxy the browser resolves names through it)</source>
+        <translation>проверяется только в режиме «VPN для всех программ» (с прокси браузер узнаёт адреса через него)</translation>
+    </message>
+    <message>
+        <source>DNS goes through Russia: %1</source>
+        <translation>DNS идёт через Россию: %1</translation>
+    </message>
+    <message>
+        <source>Sites you open are visible to the Russian DNS. Use "VPN for all apps" and check Preferences -&gt; DNS (remote DNS).</source>
+        <translation>Российский DNS видит, какие сайты ты открываешь. Включи «VPN для всех программ» и проверь Настройки → DNS (удалённый DNS).</translation>
+    </message>
+    <message>
+        <source>no leak: %1</source>
+        <translation>утечки нет: %1</translation>
+    </message>
+    <message>
+        <source>Favorite servers</source>
+        <translation>Избранные серверы</translation>
+    </message>
+    <message>
+        <source>Servers</source>
+        <translation>Серверы</translation>
+    </message>
+    <message>
+        <source>unavailable</source>
+        <translation>недоступен</translation>
+    </message>
+    <message>
+        <source>No servers yet</source>
+        <translation>Серверов пока нет</translation>
+    </message>
+    <message>
+        <source>Show window</source>
+        <translation>Показать окно</translation>
+    </message>
+    <message>
         <source>AI and Google via VPN</source>
         <translation>ИИ и Google через VPN</translation>
     </message>

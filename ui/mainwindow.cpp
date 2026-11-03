@@ -37,6 +37,11 @@
 #endif
 
 #include <QClipboard>
+#include <QHostInfo>
+#include <QJsonArray>
+#include <QElapsedTimer>
+#include <QPointer>
+#include <QListWidgetItem>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkProxy>
@@ -256,6 +261,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     tray->setIcon(Icon::GetTrayIcon(Icon::NONE));
     tray->setContextMenu(ui->menu_program); // 创建托盘菜单
     tray->show();                           // 让托盘图标显示在系统托盘上
+    p3r_setup_tray();                       // NekoBoxP3R: compact tray menu with quick server switch
     connect(tray, &QSystemTrayIcon::activated, this, [=](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger) {
             if (this->isVisible()) {
@@ -1983,6 +1989,11 @@ void MainWindow::p3r_setup() {
     appsButton->setToolTip(tr("Choose which programs go through the proxy and which go directly"));
     connect(appsButton, &QPushButton::clicked, this, [=] { p3r_show_apps_dialog(); });
     optionsCol->addWidget(appsButton);
+    auto diagButton = new QPushButton(tr("Check everything"), this);
+    diagButton->setObjectName("p3rAppsButton");
+    diagButton->setToolTip(tr("Checks internet, server, which country sites and Google see, Gemini / YouTube / ChatGPT and IPv6 / DNS leaks"));
+    connect(diagButton, &QPushButton::clicked, this, [=] { p3r_show_diagnostics(); });
+    optionsCol->addWidget(diagButton);
     p3r_refresh_apps_button();
     auto connectRow = new QHBoxLayout;
     connectRow->addWidget(p3r_connect_button, 1);
@@ -2184,6 +2195,9 @@ void MainWindow::p3r_setup() {
     connect(actionSites, &QAction::triggered, this, [=] { p3r_show_sites_dialog(); });
     ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionSites);
     ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionIp);
+    auto actionDiag = new QAction(tr("Check that everything works..."), this);
+    connect(actionDiag, &QAction::triggered, this, [=] { p3r_show_diagnostics(); });
+    ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionDiag);
 
     // right click on a connection: this site directly / via VPN
     ui->tableWidget_conn->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -3052,4 +3066,382 @@ void MainWindow::p3r_check_subscriptions() {
         changed = true;
     }
     if (changed) NekoGui::dataStore->Save();
+}
+
+// ======================== NekoBoxP3R: "check that everything works" ========================
+
+namespace {
+    enum class P3RRoute { Direct, AppProxy, Browser };
+
+    struct P3RHttpResult {
+        int status = 0; // 0 = no answer
+        QByteArray body;
+        QString error;
+        qint64 ms = 0;
+    };
+} // namespace
+
+void MainWindow::p3r_show_diagnostics() {
+    auto d = new QDialog(this);
+    d->setAttribute(Qt::WA_DeleteOnClose);
+    d->setWindowTitle(tr("Check that everything works"));
+    d->resize(720, 620);
+    auto layout = new QVBoxLayout(d);
+    auto head = new QLabel(tr("The checks go the same way as your browser traffic."), d);
+    head->setStyleSheet("color:#9FC3E6;");
+    layout->addWidget(head);
+    auto list = new QListWidget(d);
+    list->setWordWrap(true);
+    list->setSelectionMode(QAbstractItemView::NoSelection);
+    list->setStyleSheet("QListWidget::item{padding:8px 6px;border-bottom:1px solid #13305A;}");
+    layout->addWidget(list, 1);
+    auto buttons = new QHBoxLayout;
+    auto btnAgain = new QPushButton(tr("Check again"), d);
+    auto btnCopy = new QPushButton(tr("Copy report"), d);
+    auto btnClose = new QPushButton(tr("Close"), d);
+    buttons->addWidget(btnAgain);
+    buttons->addWidget(btnCopy);
+    buttons->addStretch();
+    buttons->addWidget(btnClose);
+    layout->addLayout(buttons);
+    connect(btnClose, &QPushButton::clicked, d, &QDialog::close);
+    connect(btnCopy, &QPushButton::clicked, d, [=] {
+        QStringList lines{"NekoBoxP3R v" + QString(P3R_VERSION)};
+        for (int i = 0; i < list->count(); i++) lines << list->item(i)->text();
+        QApplication::clipboard()->setText(lines.join("\n"));
+    });
+
+    auto nam = new QNetworkAccessManager(d);
+    auto alive = QPointer<QDialog>(d);
+    auto runId = std::make_shared<int>(0);
+
+    // one row per check: "⏳ Title" -> "✅ Title — detail\n advice"
+    auto addRow = [=](const QString &title) {
+        auto item = new QListWidgetItem(QString::fromUtf8("⏳  ") + title + QString::fromUtf8("  …"));
+        list->addItem(item);
+        list->scrollToBottom();
+        return item;
+    };
+    auto setRow = [=](QListWidgetItem *item, int level, const QString &title, const QString &detail, const QString &advice = {}) {
+        // level: 0 ok, 1 warning, 2 error, 3 info
+        static const char *icons[] = {"✅", "⚠️", "❌", "ℹ️"};
+        QString text = QString::fromUtf8(icons[level]) + "  " + title + (detail.isEmpty() ? QString() : QString::fromUtf8(" — ") + detail);
+        if (!advice.isEmpty()) text += "\n      " + advice;
+        item->setText(text);
+        item->setForeground(level == 2 ? QColor("#FF6B76") : (level == 1 ? QColor("#FFD23F") : QColor("#EAF6FF")));
+    };
+
+    // HTTP helper with the chosen route
+    auto http = [=](const QString &url, P3RRoute route, int timeoutMs, std::function<void(const P3RHttpResult &)> done) {
+        QNetworkProxy proxy(QNetworkProxy::NoProxy);
+        if (route == P3RRoute::AppProxy) {
+            proxy = QNetworkProxy(QNetworkProxy::Socks5Proxy, "127.0.0.1", NekoGui::dataStore->inbound_socks_port);
+            if (NekoGui::dataStore->inbound_auth->NeedAuth()) {
+                proxy.setUser(NekoGui::dataStore->inbound_auth->username);
+                proxy.setPassword(NekoGui::dataStore->inbound_auth->password);
+            }
+        } else if (route == P3RRoute::Browser) {
+            auto proxies = QNetworkProxyFactory::systemProxyForQuery(QNetworkProxyQuery(QUrl(url)));
+            if (!proxies.isEmpty()) proxy = proxies.first();
+        }
+        nam->setProxy(proxy);
+        QNetworkRequest req{QUrl(url)};
+        req.setTransferTimeout(timeoutMs);
+        req.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NekoBoxP3R-check");
+        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+        auto timer = std::make_shared<QElapsedTimer>();
+        timer->start();
+        auto reply = nam->get(req);
+        QObject::connect(reply, &QNetworkReply::finished, d, [=] {
+            reply->deleteLater();
+            P3RHttpResult r;
+            r.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            r.body = reply->readAll();
+            r.error = reply->error() == QNetworkReply::NoError ? QString() : reply->errorString();
+            r.ms = timer->elapsed();
+            done(r);
+        });
+    };
+
+    auto run = [=]() {
+        list->clear();
+        int myRun = ++(*runId);
+        btnAgain->setEnabled(false);
+        auto stillHere = [=] { return !alive.isNull() && *runId == myRun; };
+        bool vpn = NekoGui::dataStore->spmode_vpn, sysProxy = NekoGui::dataStore->spmode_system_proxy;
+        bool connected = running != nullptr;
+
+        // steps are chained: each calls next() when done
+        auto steps = std::make_shared<QList<std::function<void(std::function<void()>)>>>();
+
+        // 1. internet
+        steps->append([=](std::function<void()> next) {
+            auto row = addRow(tr("Internet"));
+            http("https://ya.ru/", P3RRoute::Direct, 8000, [=](const P3RHttpResult &r) {
+                if (!stillHere()) return;
+                if (r.status > 0) {
+                    setRow(row, 0, tr("Internet"), tr("works (%1 ms)").arg(r.ms));
+                    next();
+                    return;
+                }
+                http("http://www.msftconnecttest.com/connecttest.txt", P3RRoute::Direct, 8000, [=](const P3RHttpResult &r2) {
+                    if (!stillHere()) return;
+                    if (r2.status > 0) setRow(row, 0, tr("Internet"), tr("works"));
+                    else setRow(row, 2, tr("Internet"), tr("no connection"), tr("Check the cable / Wi-Fi. Nothing else will work without it."));
+                    next();
+                });
+            });
+        });
+
+        // 2. server
+        steps->append([=](std::function<void()> next) {
+            auto row = addRow(tr("Server"));
+            if (!connected) {
+                setRow(row, 2, tr("Server"), tr("not connected"), tr("Press CONNECT. The other checks will show your real (Russian) IP."));
+                next();
+                return;
+            }
+            auto name = running->bean->DisplayName();
+            runOnNewThread([=] {
+                QElapsedTimer t;
+                t.start();
+                bool ok = p3r_test_current(8000);
+                auto ms = t.elapsed();
+                runOnUiThread([=] {
+                    if (!stillHere()) return;
+                    if (ok) setRow(row, 0, tr("Server"), tr("%1 answers (%2 ms)").arg(name).arg(ms));
+                    else setRow(row, 2, tr("Server"), tr("%1 does not answer").arg(name), tr("Choose another server or press CONNECT with \"Fastest server\" on."));
+                    next();
+                });
+            });
+        });
+
+        // 3. country seen by sites (the browser way)
+        steps->append([=](std::function<void()> next) {
+            auto row = addRow(tr("Country that sites see"));
+            http("https://ipinfo.io/json", P3RRoute::Browser, 9000, [=](const P3RHttpResult &r) {
+                if (!stillHere()) return;
+                auto j = QJsonDocument::fromJson(r.body).object();
+                auto country = j["country"].toString();
+                auto detail = QString("%1 %2 (%3)").arg(j["country"].toString(), j["city"].toString(), j["ip"].toString());
+                if (country.isEmpty()) {
+                    setRow(row, 1, tr("Country that sites see"), tr("could not check"), r.error);
+                } else if (country == "RU") {
+                    QString advice;
+                    if (!vpn && !sysProxy) advice = tr("Neither \"VPN for all apps\" nor \"Browser and proxy-aware apps\" is on: the browser goes without the proxy.");
+                    else if (NekoGui::dataStore->p3r_app_mode == 2) advice = tr("\"Only these apps via VPN\" is on and the browser is not in the list. Add it in \"Apps...\".");
+                    else if (!connected) advice = tr("Not connected.");
+                    else advice = tr("The server itself may be in Russia or have a Russian IP. Choose a server in another country.");
+                    setRow(row, 2, tr("Country that sites see"), detail, advice);
+                } else {
+                    setRow(row, 0, tr("Country that sites see"), detail);
+                }
+                next();
+            });
+        });
+
+        // 4. Google region (Gemini API answers "User location is not supported" for blocked regions)
+        steps->append([=](std::function<void()> next) {
+            auto row = addRow(tr("Region for Google"));
+            http("https://generativelanguage.googleapis.com/v1beta/models?key=NekoBoxP3R-check", P3RRoute::Browser, 9000, [=](const P3RHttpResult &r) {
+                if (!stillHere()) return;
+                auto body = QString::fromUtf8(r.body);
+                if (body.contains("location is not supported", Qt::CaseInsensitive)) {
+                    setRow(row, 2, tr("Region for Google"), tr("Google considers your location unsupported"),
+                           tr("Google thinks this IP is in Russia (or another blocked country). Choose a server of another country/provider; turn on \"AI and Google via VPN\"."));
+                } else if (r.status > 0) {
+                    setRow(row, 0, tr("Region for Google"), tr("Google lets you in"));
+                } else {
+                    setRow(row, 1, tr("Region for Google"), tr("Google does not answer"), r.error);
+                }
+                next();
+            });
+        });
+
+        // 5-7. services
+        struct Svc {
+            QString name, url;
+        };
+        for (const auto &svc: QList<Svc>{{"Gemini", "https://gemini.google.com/app"}, {"YouTube", "https://www.youtube.com/generate_204"}}) {
+            steps->append([=](std::function<void()> next) {
+                auto row = addRow(svc.name);
+                http(svc.url, P3RRoute::Browser, 10000, [=](const P3RHttpResult &r) {
+                    if (!stillHere()) return;
+                    if (r.status > 0 && r.status < 500) setRow(row, 0, svc.name, tr("opens (%1 ms)").arg(r.ms));
+                    else setRow(row, 2, svc.name, tr("does not open"), r.error);
+                    next();
+                });
+            });
+        }
+        steps->append([=](std::function<void()> next) {
+            auto row = addRow("ChatGPT");
+            http("https://api.openai.com/v1/models", P3RRoute::Browser, 10000, [=](const P3RHttpResult &r) {
+                if (!stillHere()) return;
+                auto body = QString::fromUtf8(r.body);
+                if (body.contains("unsupported_country", Qt::CaseInsensitive)) {
+                    setRow(row, 2, "ChatGPT", tr("OpenAI considers your country unsupported"), tr("Choose a server in another country."));
+                } else if (r.status > 0) {
+                    setRow(row, 0, "ChatGPT", tr("available (%1 ms)").arg(r.ms));
+                } else {
+                    setRow(row, 2, "ChatGPT", tr("does not open"), r.error);
+                }
+                next();
+            });
+        });
+
+        // 8. IPv6 leak (TUN without IPv6: IPv6 traffic would bypass the tunnel)
+        steps->append([=](std::function<void()> next) {
+            auto row = addRow(tr("IPv6 leak"));
+            if (!vpn) {
+                setRow(row, 3, tr("IPv6 leak"), tr("checked only in \"VPN for all apps\" mode"));
+                next();
+                return;
+            }
+            http("https://api6.ipify.org", P3RRoute::Direct, 6000, [=](const P3RHttpResult &r) {
+                if (!stillHere()) return;
+                auto ip6 = QString::fromUtf8(r.body).trimmed();
+                if (r.status == 200 && ip6.contains(':') && !NekoGui::dataStore->vpn_ipv6) {
+                    setRow(row, 2, tr("IPv6 leak"), tr("IPv6 goes around VPN (%1)").arg(ip6),
+                           tr("Turn on IPv6 in Preferences -> VPN (Tun) settings, or disable IPv6 in the Windows network adapter."));
+                } else if (r.status == 200 && ip6.contains(':')) {
+                    setRow(row, 0, tr("IPv6 leak"), tr("IPv6 goes through VPN"));
+                } else {
+                    setRow(row, 0, tr("IPv6 leak"), tr("no leak (no direct IPv6)"));
+                }
+                next();
+            });
+        });
+
+        // 9. DNS leak via bash.ws
+        steps->append([=](std::function<void()> next) {
+            auto row = addRow(tr("DNS leak"));
+            if (!vpn) {
+                setRow(row, 3, tr("DNS leak"), tr("checked only in \"VPN for all apps\" mode (with the proxy the browser resolves names through it)"));
+                next();
+                return;
+            }
+            http("https://bash.ws/id", P3RRoute::Direct, 8000, [=](const P3RHttpResult &r) {
+                if (!stillHere()) return;
+                auto id = QString::fromUtf8(r.body).trimmed();
+                if (id.isEmpty() || id.size() > 64) {
+                    setRow(row, 1, tr("DNS leak"), tr("could not check"), r.error);
+                    next();
+                    return;
+                }
+                auto pending = std::make_shared<int>(10);
+                for (int i = 1; i <= 10; i++) {
+                    QHostInfo::lookupHost(QString("%1.%2.bash.ws").arg(i).arg(id), d, [=](const QHostInfo &) {
+                        if (--(*pending) != 0) return;
+                        http("https://bash.ws/dnsleak/test/" + id + "?json", P3RRoute::Direct, 10000, [=](const P3RHttpResult &r2) {
+                            if (!stillHere()) return;
+                            QStringList servers;
+                            bool russian = false;
+                            for (const auto &v: QJsonDocument::fromJson(r2.body).array()) {
+                                auto o = v.toObject();
+                                if (o["type"].toString() != "dns") continue;
+                                auto c = o["country_name"].toString();
+                                servers << QString("%1 (%2)").arg(o["asn"].toString(), c);
+                                if (c == "Russia" || o["country"].toString() == "RU") russian = true;
+                            }
+                            if (servers.isEmpty()) setRow(row, 1, tr("DNS leak"), tr("could not check"));
+                            else if (russian) setRow(row, 2, tr("DNS leak"), tr("DNS goes through Russia: %1").arg(servers.join(", ")),
+                                                     tr("Sites you open are visible to the Russian DNS. Use \"VPN for all apps\" and check Preferences -> DNS (remote DNS)."));
+                            else setRow(row, 0, tr("DNS leak"), tr("no leak: %1").arg(servers.join(", ")));
+                            next();
+                        });
+                    });
+                }
+            });
+        });
+
+        // runner
+        auto index = std::make_shared<int>(0);
+        auto step = std::make_shared<std::function<void()>>();
+        *step = [=] {
+            if (!stillHere()) return;
+            if (*index >= steps->size()) {
+                btnAgain->setEnabled(true);
+                return;
+            }
+            auto current = steps->at((*index)++);
+            current([=] { QTimer::singleShot(0, d, [=] { (*step)(); }); });
+        };
+        (*step)();
+    };
+    connect(btnAgain, &QPushButton::clicked, d, [=] { run(); });
+    d->show();
+    run();
+}
+
+// ======================== NekoBoxP3R: tray quick server switch ========================
+
+void MainWindow::p3r_setup_tray() {
+    p3r_tray_menu = new QMenu(this);
+    tray->setContextMenu(p3r_tray_menu);
+    connect(p3r_tray_menu, &QMenu::aboutToShow, this, [=] { p3r_fill_tray_menu(); });
+    p3r_fill_tray_menu();
+}
+
+void MainWindow::p3r_fill_tray_menu() {
+    auto m = p3r_tray_menu;
+    m->clear();
+    m->setToolTipsVisible(true);
+
+    // status line
+    auto status = m->addAction(running != nullptr ? QString::fromUtf8("●  ") + running->bean->DisplayName() : tr("Not connected"));
+    status->setEnabled(false);
+
+    // servers: favorites (all groups), otherwise the fastest of the current group
+    QList<std::shared_ptr<NekoGui::ProxyEntity>> servers;
+    for (const auto &key: NekoGui::dataStore->p3r_favorites) {
+        auto ent = NekoGui::profileManager->GetProfile(key.toInt());
+        if (ent != nullptr) servers << ent;
+    }
+    bool fromFavorites = !servers.isEmpty();
+    if (!fromFavorites) {
+        auto group = NekoGui::profileManager->CurrentGroup();
+        if (group != nullptr) servers = group->ProfilesWithOrder();
+        std::stable_sort(servers.begin(), servers.end(), [](const auto &a, const auto &b) {
+            auto la = a->latency > 0 ? a->latency : 1000000, lb = b->latency > 0 ? b->latency : 1000000;
+            return la < lb;
+        });
+        while (servers.size() > 10) servers.removeLast();
+    }
+    m->addSection(fromFavorites ? tr("Favorite servers") : tr("Servers"));
+    auto dpr = devicePixelRatioF();
+    for (const auto &ent: servers) {
+        QString text = P3R::StripFlags(ent->bean->name.isEmpty() ? ent->bean->DisplayName() : ent->bean->name);
+        if (ent->latency > 0) text += QString("   %1 ms").arg(ent->latency);
+        else if (ent->latency < 0) text += "   " + tr("unavailable");
+        auto a = m->addAction(QIcon(P3R::NameIcon(P3R::DetectCountry(ent->bean->name), p3r_is_favorite(ent->id), dpr)), text);
+        a->setCheckable(true);
+        a->setChecked(running != nullptr && running->id == ent->id);
+        auto id = ent->id;
+        connect(a, &QAction::triggered, this, [=] { neko_start(id); });
+    }
+    if (servers.isEmpty()) m->addAction(tr("No servers yet"))->setEnabled(false);
+
+    m->addSeparator();
+    m->addAction(tr("Connect to the fastest server"), this, [=] { p3r_connect_best(); })->setEnabled(running == nullptr);
+    if (running != nullptr) m->addAction(tr("Disconnect"), this, [=] { neko_stop(); });
+
+    m->addSeparator();
+    auto vpnA = m->addAction(tr("VPN for all apps"), this, [=](bool on) { neko_set_spmode_vpn(on); });
+    vpnA->setCheckable(true);
+    vpnA->setChecked(NekoGui::dataStore->spmode_vpn);
+    auto sysA = m->addAction(tr("Browser and proxy-aware apps"), this, [=](bool on) { neko_set_spmode_system_proxy(on); });
+    sysA->setCheckable(true);
+    sysA->setChecked(NekoGui::dataStore->spmode_system_proxy);
+
+    m->addSeparator();
+    m->addAction(tr("Check that everything works..."), this, [=] { p3r_show_diagnostics(); });
+    m->addAction(tr("Show window"), this, [=] {
+        show();
+        raise();
+        activateWindow();
+    });
+    auto more = m->addMenu(tr("Program"));
+    more->addActions(ui->menu_program->actions());
+    m->addSeparator();
+    m->addAction(ui->menu_exit);
 }
