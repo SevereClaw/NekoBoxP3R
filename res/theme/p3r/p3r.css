@@ -18,9 +18,9 @@ QDialog QToolButton:hover{border-color:#2EE6FF;}
 /* ---- big VPN / System Proxy switches ---- */
 QCheckBox#checkBox_VPN,QCheckBox#checkBox_SystemProxy{font-weight:800;font-style:italic;font-size:11pt;spacing:8px;padding:2px 6px;}
 QCheckBox#checkBox_VPN::indicator,QCheckBox#checkBox_SystemProxy::indicator{width:30px;height:14px;border-radius:7px;}
-QCheckBox#checkBox_VPN::indicator:checked{background:#FF2B3B;border:2px solid #FFFFFF;}
+QCheckBox#checkBox_VPN::indicator:checked{background:#FFC21A;border:2px solid #FFFFFF;}
 QCheckBox#checkBox_SystemProxy::indicator:checked{background:#2EE6FF;border:2px solid #FFFFFF;}
-QCheckBox#checkBox_VPN:checked{color:#FF6B76;}
+QCheckBox#checkBox_VPN:checked{color:#FFC21A;}
 QCheckBox#checkBox_SystemProxy:checked{color:#2EE6FF;}
 
 /* ---- inputs ---- */
@@ -121,3 +121,7 @@ QMessageBox{background:#0A1A33;}
 QMessageBox QLabel{color:#EAF6FF;}
 
 /* big CONNECT button is painted in code (ui/p3r/P3RWidgets.cpp) */
+/* server list: bigger, high-contrast text */
+QTableWidget#proxyListTable{font-size:11pt;color:#FFFFFF;background:#081530;alternate-background-color:#0D2448;gridline-color:#102A50;}
+QTableWidget#proxyListTable::item{padding:2px 8px;}
+QTableWidget#proxyListTable QHeaderView::section{font-size:10pt;}

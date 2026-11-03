@@ -190,7 +190,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->tableWidget_conn->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->tableWidget_conn->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     ui->tableWidget_conn->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    ui->proxyListTable->verticalHeader()->setDefaultSectionSize(24);
+    ui->proxyListTable->verticalHeader()->setDefaultSectionSize(32);
+    ui->proxyListTable->setItemDelegateForColumn(3, new P3R::LatencyDelegate(ui->proxyListTable));
 
     // search box
     ui->search->setVisible(false);
@@ -1068,6 +1069,8 @@ void MainWindow::refresh_proxy_list_impl_refresh_data(const int &id) {
             auto color = profile->DisplayLatencyColor();
             if (color.isValid()) f->setForeground(color);
             f->setText(profile->DisplayLatency());
+            f->setData(P3R::LatencyRole, profile->latency);
+            f->setData(P3R::GreenRole, NekoGui::dataStore->test_latency_url.startsWith("https://") ? 200 : 100);
         } else {
             f->setText(profile->full_test_report);
         }

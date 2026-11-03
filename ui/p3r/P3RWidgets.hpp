@@ -6,6 +6,7 @@
 #include <QDialog>
 #include <QVariantAnimation>
 #include <QPointer>
+#include <QStyledItemDelegate>
 
 namespace P3R {
 
@@ -59,6 +60,17 @@ namespace P3R {
         qreal m_progress = 1;
         bool m_introPlayed = false;
         QVariantAnimation *m_anim;
+    };
+
+    // Latency cell: colored slanted pill + signal bars
+    // item data: LatencyRole = latency ms (-1 unavailable, 0 untested), GreenRole = "good" threshold ms
+    inline constexpr int LatencyRole = Qt::UserRole + 0x51;
+    inline constexpr int GreenRole = Qt::UserRole + 0x52;
+    class LatencyDelegate : public QStyledItemDelegate {
+    public:
+        using QStyledItemDelegate::QStyledItemDelegate;
+        void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
+        QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
     };
 
     // About dialog

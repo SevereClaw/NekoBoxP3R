@@ -13,6 +13,10 @@
 #include <QVBoxLayout>
 #include <QEnterEvent>
 #include <QPixmap>
+#include <QStyleOptionViewItem>
+#include <QStyle>
+#include <QFontMetricsF>
+#include <QAbstractItemView>
 #include <QDesktopServices>
 #include <QUrl>
 
@@ -353,6 +357,85 @@ namespace P3R {
         p.setFont(s);
         p.setPen(QColor(46, 230, 255, int(255 * t)));
         p.drawText(QRectF(0, 0, w - 12, h), Qt::AlignRight | Qt::AlignVCenter, m_subtitle);
+    }
+
+    // ======================================================== latency
+
+    static void latencyLook(int ms, int green, QColor &color, int &bars) {
+        if (ms < 0) {
+            color = kRed;
+            bars = 0;
+        } else if (ms < green) {
+            color = QColor("#22DD66");
+            bars = 4;
+        } else if (ms < green * 5 / 2) {
+            color = QColor("#FFD23F");
+            bars = 3;
+        } else if (ms < 1000) {
+            color = QColor("#FF8A3D");
+            bars = 2;
+        } else {
+            color = QColor("#FF5A6A");
+            bars = 1;
+        }
+    }
+
+    void LatencyDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+        auto latencyData = index.data(LatencyRole);
+        int ms = latencyData.isValid() ? latencyData.toInt() : 0;
+        if (!latencyData.isValid() || ms == 0) {
+            QStyledItemDelegate::paint(painter, option, index); // untested or full test report: plain text
+            return;
+        }
+
+        // background / selection without text
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+        opt.text.clear();
+        auto style = opt.widget ? opt.widget->style() : QApplication::style();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, opt.widget);
+
+        int green = index.data(GreenRole).toInt();
+        if (green <= 0) green = 200;
+        QColor color;
+        int bars;
+        latencyLook(ms, green, color, bars);
+        QString text = ms < 0 ? index.data(Qt::DisplayRole).toString() : QStringLiteral("%1 ms").arg(ms);
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->setPen(Qt::NoPen);
+        QRectF r = QRectF(option.rect).adjusted(6, 4, -6, -4);
+
+        // signal bars
+        const qreal barW = 4, gap = 2, barsW = 4 * barW + 3 * gap;
+        for (int i = 0; i < 4; i++) {
+            qreal bh = r.height() * (0.35 + 0.65 * (i + 1) / 4.0);
+            QRectF b(r.left() + i * (barW + gap), r.bottom() - bh, barW, bh);
+            painter->setBrush(i < bars ? color : QColor(255, 255, 255, 40));
+            painter->drawRect(b);
+        }
+
+        // slanted pill with the value
+        QFont f = option.font;
+        f.setBold(true);
+        f.setItalic(true);
+        f.setPointSizeF(qMax<qreal>(f.pointSizeF(), 10.5));
+        painter->setFont(f);
+        qreal textW = QFontMetricsF(f).horizontalAdvance(text);
+        const qreal skew = r.height() * 0.3;
+        QRectF pill(r.left() + barsW + 8, r.top(), textW + 18 + skew, r.height());
+        painter->setBrush(color);
+        painter->drawPolygon(slanted(pill, skew));
+        painter->setPen(kDeep);
+        painter->drawText(pill.adjusted(skew / 2, 0, -skew / 2, 0), Qt::AlignCenter, text);
+        painter->restore();
+    }
+
+    QSize LatencyDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const {
+        auto s = QStyledItemDelegate::sizeHint(option, index);
+        if (index.data(LatencyRole).toInt() != 0) s.setWidth(s.width() + 60);
+        return s;
     }
 
     // ======================================================== about

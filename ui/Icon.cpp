@@ -22,26 +22,31 @@ QPixmap Icon::GetTrayIcon(Icon::TrayIconStatus status) {
     if (status == TrayIconStatus::NONE) return pixmap;
 
     auto p = QPainter(&pixmap);
+    p.setRenderHint(QPainter::Antialiasing);
 
+    // NekoBoxP3R: big status badge with a navy + white outline, so it stays
+    // visible on top of the red ring of the icon even at 16x16
     auto side = pixmap.width();
-    auto radius = side * 0.4;
-    auto d = side * 0.3;
-    auto margin = side * 0.05;
+    qreal d = side * 0.46;
+    qreal margin = side * 0.02;
+    QRectF badge(side - d - margin, side - d - margin, d, d);
 
+    QColor fill;
     if (status == TrayIconStatus::RUNNING) {
-        p.setBrush(QBrush(Qt::darkGreen));
+        fill = QColor("#22DD66"); // green: connected
     } else if (status == TrayIconStatus::SYSTEM_PROXY) {
-        p.setBrush(QBrush(Qt::blue));
+        fill = QColor("#2EE6FF"); // cyan: system proxy
     } else if (status == TrayIconStatus::VPN) {
-        p.setBrush(QBrush(Qt::red));
+        fill = QColor("#FFC21A"); // amber: VPN (TUN) - not red, so it does not merge with the ring
     }
-    p.drawRoundedRect(
-        QRect(side - d - margin,
-              side - d - margin,
-              d,
-              d),
-        radius,
-        radius);
+
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor("#061026"));
+    p.drawEllipse(badge);
+    p.setBrush(Qt::white);
+    p.drawEllipse(badge.adjusted(d * 0.12, d * 0.12, -d * 0.12, -d * 0.12));
+    p.setBrush(fill);
+    p.drawEllipse(badge.adjusted(d * 0.22, d * 0.22, -d * 0.22, -d * 0.22));
     p.end();
 
     return pixmap;
