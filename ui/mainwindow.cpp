@@ -37,6 +37,10 @@
 #endif
 
 #include <QClipboard>
+#include <QPlainTextEdit>
+#include <QStandardPaths>
+#include <QSysInfo>
+#include <QFontDatabase>
 #include <QResizeEvent>
 #include <QAbstractButton>
 #include <QComboBox>
@@ -1946,6 +1950,28 @@ bool MainWindow::StopVPNProcess(bool unconditional) {
 
 void MainWindow::p3r_setup() {
     // Big connect button between the top bar and the server list
+    // subscriptions: auto-update every 12 hours, also for old configs with the old default (off)
+    if (!NekoGui::dataStore->p3r_sub_auto_migrated) {
+        if (NekoGui::dataStore->sub_auto_update == -30) NekoGui::dataStore->sub_auto_update = 720;
+        NekoGui::dataStore->p3r_sub_auto_migrated = true;
+        NekoGui::dataStore->Save();
+    }
+    // and right after start if the last update is older than the interval
+    QTimer::singleShot(30 * 1000, this, [=] {
+        int minutes = NekoGui::dataStore->sub_auto_update;
+        if (minutes < 30) return;
+        auto now = QDateTime::currentSecsSinceEpoch();
+        for (const auto &gid: NekoGui::profileManager->groupsTabOrder) {
+            auto g = NekoGui::profileManager->GetGroup(gid);
+            if (g == nullptr || g->url.isEmpty() || g->archive || g->skip_auto_update) continue;
+            if (now - g->sub_last_update > minutes * 60) {
+                MW_show_log(tr("[NekoBoxP3R] Updating subscriptions (last update was long ago)"));
+                UI_update_all_groups(true);
+                return;
+            }
+        }
+    });
+
     P3R::soundsEnabled = NekoGui::dataStore->p3r_sounds;
     P3R::animationsEnabled = NekoGui::dataStore->p3r_animations;
     P3R::InstallAnimator();
@@ -2204,6 +2230,10 @@ void MainWindow::p3r_setup() {
     connect(actionSites, &QAction::triggered, this, [=] { p3r_show_sites_dialog(); });
     ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionSites);
     ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionIp);
+    auto actionReport = new QAction(tr("Problem report..."), this);
+    actionReport->setToolTip(tr("Collects the log, version and settings (without passwords and server keys) into a file you can send"));
+    connect(actionReport, &QAction::triggered, this, [=] { p3r_show_report(); });
+    ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionReport);
     auto actionDiag = new QAction(tr("Check that everything works..."), this);
     connect(actionDiag, &QAction::triggered, this, [=] { p3r_show_diagnostics(); });
     ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionDiag);
@@ -3141,9 +3171,12 @@ void MainWindow::p3r_show_diagnostics() {
     auto buttons = new QHBoxLayout;
     auto btnAgain = new QPushButton(tr("Check again"), d);
     auto btnCopy = new QPushButton(tr("Copy report"), d);
+    auto btnBug = new QPushButton(tr("Problem report..."), d);
+    connect(btnBug, &QPushButton::clicked, this, [=] { p3r_show_report(); });
     auto btnClose = new QPushButton(tr("Close"), d);
     buttons->addWidget(btnAgain);
     buttons->addWidget(btnCopy);
+    buttons->addWidget(btnBug);
     buttons->addStretch();
     buttons->addWidget(btnClose);
     layout->addLayout(buttons);
@@ -3404,6 +3437,9 @@ void MainWindow::p3r_show_diagnostics() {
             if (!stillHere()) return;
             if (*index >= steps->size()) {
                 btnAgain->setEnabled(true);
+                QStringList lines;
+                for (int i = 0; i < list->count(); i++) lines << list->item(i)->text();
+                p3r_last_diag = lines.join("\n");
                 return;
             }
             auto current = steps->at((*index)++);
@@ -3779,4 +3815,129 @@ void MainWindow::p3r_apply_layout_mode(bool force) {
     }
     ui->search->setMinimumWidth(level == 0 ? 180 : (level == 1 ? 120 : 80));
     if (p3r_profile_combo != nullptr) p3r_profile_combo->setMinimumWidth(level == 2 ? 90 : 130);
+}
+
+// ======================== NekoBoxP3R: problem report ========================
+
+static QString p3r_redact(QString text) {
+    // server addresses and subscription links of this config
+    for (const auto &[id, ent]: NekoGui::profileManager->profiles) {
+        auto addr = ent->bean->serverAddress.trimmed();
+        if (addr.size() >= 4 && addr != "127.0.0.1" && addr != "localhost") text.replace(addr, QString("<server-%1>").arg(id), Qt::CaseInsensitive);
+    }
+    for (const auto &gid: NekoGui::profileManager->groupsTabOrder) {
+        auto g = NekoGui::profileManager->GetGroup(gid);
+        if (g != nullptr && !g->url.isEmpty()) text.replace(g->url, QString("<subscription-%1>").arg(gid));
+    }
+    struct Rule {
+        const char *re, *to;
+    };
+    static const Rule rules[] = {
+        // share links: vless://uuid@host:port?...
+        {R"(\b(vless|vmess|trojan|ss|ssr|socks5?|hysteria2?|hy2|tuic|wireguard|wg|naive\+https|naive\+quic|anytls)://\S+)", "\\1://<redacted>"},
+        // URLs: keep the host, drop path, query and user info
+        {R"(\b(https?://)(?:[^\s/@]*@)?([^\s/:?#]+)[^\s"']*)", "\\1\\2/<redacted>"},
+        // secrets in JSON
+        {R"#(("(?:password|uuid|private_key|pre_shared_key|psk|token|auth|auth_str|obfs_password|secret|public_key|short_id)"\s*:\s*")[^"]*")#", "\\1<redacted>\""},
+        // UUIDs
+        {R"(\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b)", "<uuid>"},
+        // long tokens / keys
+        {R"([A-Za-z0-9+/_=-]{32,})", "<token>"},
+        // IPv4: keep the first two parts
+        {R"(\b(\d{1,3}\.\d{1,3})\.\d{1,3}\.\d{1,3}\b)", "\\1.x.x"},
+    };
+    for (const auto &r: rules) text.replace(QRegularExpression(r.re), r.to);
+    return text;
+}
+
+void MainWindow::p3r_show_report() {
+    auto ds = NekoGui::dataStore;
+    QStringList r;
+    auto yes = [](bool b) { return b ? QString("on") : QString("off"); };
+    r << "===== NekoBoxP3R problem report =====";
+    r << "Created: " + QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+    r << "NekoBoxP3R: v" + QString(P3R_VERSION) + "   NekoBox: " + QString(NKR_VERSION) + "   Qt: " + QString(qVersion());
+    r << "Windows: " + QSysInfo::prettyProductName() + " (" + QSysInfo::currentCpuArchitecture() + ")" + "   admin: " + yes(NekoGui::IsAdmin());
+    r << "";
+    r << "--- State ---";
+    r << "Connected: " + (running != nullptr ? QString("yes, %1 (%2)").arg(running->bean->DisplayType(), P3R::DetectCountry(running->bean->name)) : QString("no"));
+    r << "VPN for all apps: " + yes(ds->spmode_vpn) + "   Browser proxy: " + yes(ds->spmode_system_proxy) + "   core running: " + yes(ds->core_running);
+    r << "Russian sites directly: " + yes(ds->p3r_ru_direct) + "   AI and Google via VPN: " + yes(ds->p3r_ai_via_vpn) + "   Fastest server: " + yes(ds->p3r_auto_best);
+    r << QString("Apps mode: %1 (%2 apps: %3)").arg(ds->p3r_app_mode).arg(ds->p3r_app_list.size()).arg(ds->p3r_app_list.join(", "));
+    r << "Kill switch: " + yes(ds->p3r_killswitch) + (P3R::KillSwitchActive() ? " (BLOCKING NOW)" : "") + "   Failover: " + yes(ds->p3r_failover) + "   No-UAC task: " + yes(ds->p3r_elevated_task);
+    r << "Profile: " + (ds->p3r_active_profile.isEmpty() ? QString("-") : ds->p3r_active_profile) + "   Theme: " + ds->theme + "   Simple mode: " + yes(ds->simple_mode);
+    r << QString("Tun: internal %1, ipv6 %2, strict route %3, mtu %4").arg(yes(ds->vpn_internal_tun), yes(ds->vpn_ipv6), yes(ds->vpn_strict_route)).arg(ds->vpn_mtu);
+    r << QString("Inbound: %1:%2   Sub auto-update: %3 min").arg(ds->inbound_address).arg(ds->inbound_socks_port).arg(ds->sub_auto_update);
+    r << "Routing: " + ds->active_routing + "   remote DNS: " + p3r_redact(ds->routing->remote_dns) + "   direct DNS: " + p3r_redact(ds->routing->direct_dns);
+    r << "Site rules: direct domains " + QString::number(ds->routing->direct_domain.split('\n', Qt::SkipEmptyParts).size()) +
+             ", proxy domains " + QString::number(ds->routing->proxy_domain.split('\n', Qt::SkipEmptyParts).size());
+    r << "";
+    r << "--- Groups and servers (no addresses, no keys) ---";
+    for (const auto &gid: NekoGui::profileManager->groupsTabOrder) {
+        auto g = NekoGui::profileManager->GetGroup(gid);
+        if (g == nullptr) continue;
+        auto profiles = g->ProfilesWithOrder();
+        r << QString("[%1] %2 servers%3%4").arg(g->name).arg(profiles.size()).arg(g->url.isEmpty() ? "" : ", subscription").arg(g->info.isEmpty() ? "" : ", info: " + g->info);
+        int n = 0;
+        for (const auto &p: profiles) {
+            if (++n > 40) {
+                r << "  ...";
+                break;
+            }
+            QString lat = p->latency > 0 ? QString("%1 ms").arg(p->latency) : (p->latency < 0 ? "unavailable" : "-");
+            r << QString("  #%1 %2 %3 %4%5").arg(p->id).arg(p->bean->DisplayType(), P3R::DetectCountry(p->bean->name), lat,
+                                                     p->full_test_report.isEmpty() ? "" : " | " + p3r_redact(p->full_test_report));
+        }
+    }
+    r << "";
+    r << "--- Last \"check everything\" ---";
+    r << (p3r_last_diag.isEmpty() ? QString("(not run)") : p3r_redact(p3r_last_diag));
+    r << "";
+    r << "--- Log (last 400 lines) ---";
+    auto logLines = ui->masterLogBrowser->toPlainText().split('\n');
+    if (logLines.size() > 400) logLines = logLines.mid(logLines.size() - 400);
+    r << p3r_redact(logLines.join('\n'));
+    auto report = r.join('\n');
+
+    QDialog d(this);
+    d.setWindowTitle(tr("Problem report"));
+    d.resize(820, 620);
+    auto layout = new QVBoxLayout(&d);
+    auto hint = new QLabel(tr("This is everything that goes into the report. Server addresses, subscription links, UUIDs, passwords, keys and tokens are removed; IP addresses are shortened."), &d);
+    hint->setWordWrap(true);
+    hint->setStyleSheet("color:#9FC3E6;");
+    layout->addWidget(hint);
+    auto view = new QPlainTextEdit(report, &d);
+    view->setReadOnly(true);
+    view->setLineWrapMode(QPlainTextEdit::NoWrap);
+    view->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    layout->addWidget(view, 1);
+    auto buttons = new QHBoxLayout;
+    auto btnSave = new QPushButton(tr("Save to file..."), &d);
+    auto btnCopy = new QPushButton(tr("Copy"), &d);
+    auto btnClose = new QPushButton(tr("Close"), &d);
+    buttons->addWidget(btnSave);
+    buttons->addWidget(btnCopy);
+    buttons->addStretch();
+    buttons->addWidget(btnClose);
+    layout->addLayout(buttons);
+    connect(btnClose, &QPushButton::clicked, &d, &QDialog::accept);
+    connect(btnCopy, &QPushButton::clicked, &d, [=] {
+        QApplication::clipboard()->setText(report);
+        btnCopy->setText(tr("Copied"));
+    });
+    connect(btnSave, &QPushButton::clicked, &d, [=, &d] {
+        auto name = QString("NekoBoxP3R-report-%1.txt").arg(QDateTime::currentDateTime().toString("yyyyMMdd-HHmm"));
+        auto path = QFileDialog::getSaveFileName(&d, tr("Save report"), QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/" + name, "Text (*.txt)");
+        if (path.isEmpty()) return;
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            MessageBoxWarning("NekoBoxP3R", tr("Could not write the file."));
+            return;
+        }
+        f.write(report.toUtf8());
+        f.close();
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+    });
+    d.exec();
 }

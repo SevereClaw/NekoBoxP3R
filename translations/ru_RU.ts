@@ -1199,6 +1199,46 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>[NekoBoxP3R] Updating subscriptions (last update was long ago)</source>
+        <translation>[NekoBoxP3R] Обновляю подписки (последнее обновление было давно)</translation>
+    </message>
+    <message>
+        <source>Problem report...</source>
+        <translation>Отчёт о проблеме...</translation>
+    </message>
+    <message>
+        <source>Collects the log, version and settings (without passwords and server keys) into a file you can send</source>
+        <translation>Собирает лог, версию и настройки (без паролей и ключей серверов) в файл, который можно прислать</translation>
+    </message>
+    <message>
+        <source>Problem report</source>
+        <translation>Отчёт о проблеме</translation>
+    </message>
+    <message>
+        <source>This is everything that goes into the report. Server addresses, subscription links, UUIDs, passwords, keys and tokens are removed; IP addresses are shortened.</source>
+        <translation>Здесь всё, что попадёт в отчёт. Адреса серверов, ссылки подписок, UUID, пароли, ключи и токены вырезаны; IP-адреса укорочены.</translation>
+    </message>
+    <message>
+        <source>Save to file...</source>
+        <translation>Сохранить в файл...</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Скопировать</translation>
+    </message>
+    <message>
+        <source>Copied</source>
+        <translation>Скопировано</translation>
+    </message>
+    <message>
+        <source>Save report</source>
+        <translation>Сохранить отчёт</translation>
+    </message>
+    <message>
+        <source>Could not write the file.</source>
+        <translation>Не удалось записать файл.</translation>
+    </message>
+    <message>
         <source>Ping</source>
         <translation>Пинг</translation>
     </message>

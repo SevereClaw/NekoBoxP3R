@@ -267,6 +267,7 @@ namespace NekoGui {
         _add(new configItem("p3r_mini_pos", &p3r_mini_pos, itemType::string));
         _add(new configItem("p3r_profiles", &p3r_profiles, itemType::string));
         _add(new configItem("p3r_active_profile", &p3r_active_profile, itemType::string));
+        _add(new configItem("p3r_sub_auto_migrated", &p3r_sub_auto_migrated, itemType::boolean));
         _add(new configItem("last_started_id", &last_started_id, itemType::integer));
         _add(new configItem("custom_inbound", &custom_inbound, itemType::string));
         _add(new configItem("custom_route", &custom_route_global, itemType::string));

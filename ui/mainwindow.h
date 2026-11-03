@@ -282,6 +282,10 @@ private:
     QPushButton *p3r_mini_button = nullptr;
     void p3r_apply_layout_mode(bool force = false);
 
+public:
+    QString p3r_last_diag; // last "check everything" result for the report
+    void p3r_show_report();
+
 #endif // MW_INTERFACE
 };
 

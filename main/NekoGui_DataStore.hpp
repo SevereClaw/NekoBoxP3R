@@ -129,6 +129,7 @@ namespace NekoGui {
         QString p3r_mini_pos = "";         // NekoBoxP3R: "x,y"
         QString p3r_profiles = "";         // NekoBoxP3R: JSON array of profiles
         QString p3r_active_profile = "";   // NekoBoxP3R: name of the active profile
+        bool p3r_sub_auto_migrated = false; // NekoBoxP3R: subscription auto-update turned on once
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";
@@ -144,7 +145,7 @@ namespace NekoGui {
         bool sub_use_proxy = false;
         bool sub_clear = false;
         bool sub_insecure = false;
-        int sub_auto_update = -30;
+        int sub_auto_update = 720; // NekoBoxP3R: every 12 hours by default (negative = off)
 
         // Security
         bool skip_cert = false;
