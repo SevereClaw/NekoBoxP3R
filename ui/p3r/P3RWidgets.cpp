@@ -13,6 +13,7 @@
 #include <QVBoxLayout>
 #include <QEnterEvent>
 #include <QPixmap>
+#include <QContextMenuEvent>
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QScreen>
@@ -1061,6 +1062,158 @@ namespace P3R {
         QRectF target(-size / 2, -size / 2, size, size);
         p.drawPixmap(target, m_icon, QRectF(m_icon.rect()));
         p.restore();
+    }
+
+    // ======================================================== mini window
+
+    MiniWindow::MiniWindow() : QWidget(nullptr) {
+        setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+        setAttribute(Qt::WA_TranslucentBackground);
+        setAttribute(Qt::WA_Hover);
+        setFixedSize(340, 72);
+        setWindowTitle("NekoBoxP3R");
+        setToolTip(tr("Click the button: connect / disconnect\nDrag: move\nDouble click: open the window\nRight click: menu"));
+    }
+
+    QRectF MiniWindow::buttonRect() const {
+        return {6, 8, 78, height() - 16.0};
+    }
+
+    void MiniWindow::setState(int state, const QString &server, const QString &code, const QString &mode) {
+        m_state = state;
+        m_server = server;
+        m_code = code;
+        m_mode = mode;
+        if (state != 1) m_up = m_down = -1;
+        update();
+    }
+
+    void MiniWindow::setSpeed(qint64 up, qint64 down) {
+        m_up = up;
+        m_down = down;
+        update();
+    }
+
+    void MiniWindow::paintEvent(QPaintEvent *) {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(Qt::NoPen);
+        const qreal w = width(), h = height();
+
+        // body: slanted panel with a cyan edge
+        QRectF body(4, 4, w - 8, h - 8);
+        p.setBrush(withAlpha(kDeep, 235));
+        p.drawPolygon(slanted(body.translated(4, 3), 14));
+        QLinearGradient g(body.topLeft(), body.topRight());
+        g.setColorAt(0, withAlpha(kNavy, 245));
+        g.setColorAt(1, withAlpha(kBlue, 235));
+        p.setBrush(g);
+        p.drawPolygon(slanted(body, 14));
+        p.setBrush(kCyan);
+        p.drawPolygon(slanted(QRectF(body.right() - 30, body.bottom() - 4, 26, 4), 3));
+
+        // button
+        QRectF b = buttonRect();
+        QColor bc = m_state == 1 ? kRed : (m_state == 2 ? withAlpha(kIce, 160) : QColor(Qt::white));
+        if (m_hover && m_state != 2) bc = bc.lighter(110);
+        p.setBrush(bc);
+        p.drawPolygon(slanted(b, 12));
+        p.setBrush(m_state == 1 ? QColor(Qt::white) : kCyan);
+        p.drawPolygon(slanted(QRectF(b.left(), b.top(), 18, b.height()), 12));
+        // icon
+        QPointF c = b.center() + QPointF(6, 0);
+        p.setBrush(m_state == 1 ? QColor(Qt::white) : kNavy);
+        if (m_state == 1) {
+            p.drawRect(QRectF(c.x() - 8, c.y() - 8, 16, 16)); // stop
+        } else if (m_state == 2) {
+            p.setPen(QPen(kNavy, 3));
+            p.setBrush(Qt::NoBrush);
+            p.drawArc(QRectF(c.x() - 9, c.y() - 9, 18, 18), 30 * 16, 280 * 16);
+            p.setPen(Qt::NoPen);
+        } else {
+            QPolygonF tri;
+            tri << QPointF(c.x() - 7, c.y() - 10) << QPointF(c.x() + 10, c.y()) << QPointF(c.x() - 7, c.y() + 10);
+            p.drawPolygon(tri); // play
+        }
+
+        // texts
+        qreal x = b.right() + 16;
+        QRectF line1(x, 10, w - x - 16, (h - 20) / 2);
+        QRectF line2(x, 10 + (h - 20) / 2, w - x - 16, (h - 20) / 2);
+        qreal flagW = 0;
+        if (m_state == 1 && !m_code.isEmpty()) {
+            drawFlag(p, QRectF(x, line1.center().y() - 7, 22, 14), m_code);
+            flagW = 28;
+        }
+        QFont f1("Segoe UI");
+        f1.setItalic(true);
+        f1.setWeight(QFont::Black);
+        f1.setPointSizeF(10.5);
+        p.setFont(f1);
+        p.setPen(Qt::white);
+        QString title = m_state == 1 ? m_server : (m_state == 2 ? tr("Connecting...") : tr("Not connected"));
+        QFontMetricsF fm1(f1);
+        p.drawText(line1.adjusted(flagW, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, fm1.elidedText(title, Qt::ElideRight, line1.width() - flagW));
+
+        QFont f2("Segoe UI");
+        f2.setItalic(true);
+        f2.setWeight(QFont::Bold);
+        f2.setPointSizeF(8.5);
+        p.setFont(f2);
+        auto human = [](qint64 v) {
+            if (v < 1024) return QStringLiteral("%1 B/s").arg(qMax<qint64>(0, v));
+            if (v < 1024 * 1024) return QStringLiteral("%1 KB/s").arg(v / 1024);
+            return QStringLiteral("%1 MB/s").arg(v / 1048576.0, 0, 'f', 1);
+        };
+        QString sub;
+        if (m_state == 1 && m_down >= 0) sub = QString::fromUtf8("\u2193 ") + human(m_down) + QString::fromUtf8("   \u2191 ") + human(m_up);
+        else if (m_state == 1) sub = m_mode;
+        else sub = tr("press the button to connect");
+        p.setPen(m_state == 1 ? kCyan : withAlpha(kIce, 170));
+        p.drawText(line2, Qt::AlignLeft | Qt::AlignVCenter, sub);
+    }
+
+    void MiniWindow::mousePressEvent(QMouseEvent *e) {
+        if (e->button() != Qt::LeftButton) return;
+        m_pressPos = e->globalPosition().toPoint();
+        m_dragOffset = m_pressPos - frameGeometry().topLeft();
+        m_pressOnButton = buttonRect().contains(e->position());
+        m_dragging = false;
+    }
+
+    void MiniWindow::mouseMoveEvent(QMouseEvent *e) {
+        if (!(e->buttons() & Qt::LeftButton)) return;
+        auto gp = e->globalPosition().toPoint();
+        if (!m_dragging && (gp - m_pressPos).manhattanLength() > 4) m_dragging = true;
+        if (m_dragging) move(gp - m_dragOffset);
+    }
+
+    void MiniWindow::mouseReleaseEvent(QMouseEvent *e) {
+        if (e->button() != Qt::LeftButton) return;
+        if (m_dragging) {
+            m_dragging = false;
+            emit moved(pos());
+            return;
+        }
+        if (m_pressOnButton && buttonRect().contains(e->position()) && m_state != 2) emit toggleClicked();
+    }
+
+    void MiniWindow::mouseDoubleClickEvent(QMouseEvent *e) {
+        if (!buttonRect().contains(e->position())) emit openMain();
+    }
+
+    void MiniWindow::contextMenuEvent(QContextMenuEvent *e) {
+        emit menuRequested(e->globalPos());
+    }
+
+    void MiniWindow::enterEvent(QEnterEvent *) {
+        m_hover = true;
+        update();
+    }
+
+    void MiniWindow::leaveEvent(QEvent *) {
+        m_hover = false;
+        update();
     }
 
     // ======================================================== about

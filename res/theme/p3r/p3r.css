@@ -129,3 +129,6 @@ QTableWidget#proxyListTable QHeaderView::section{font-size:10pt;}
 QCheckBox#p3rAutoBest,QCheckBox#p3rRuDirect,QCheckBox#p3rAiVpn{font-weight:800;font-style:italic;color:#2EE6FF;padding:0px 6px;}
 QPushButton#p3rAppsButton{padding:2px 10px;min-height:14px;font-size:9pt;}
 QPushButton#p3rPasteButton{padding:5px 12px;min-height:16px;}
+QComboBox#p3rProfile{font-weight:800;font-style:italic;color:#2EE6FF;padding:4px 8px;}
+QToolButton#p3rProfileMenu{padding:3px 8px;font-size:12pt;background:#0F2547;border:1px solid #1F4F8A;}
+QToolButton#p3rProfileMenu:hover{border-color:#2EE6FF;}

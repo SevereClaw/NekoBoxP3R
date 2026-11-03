@@ -37,6 +37,11 @@
 #endif
 
 #include <QClipboard>
+#include <QComboBox>
+#include <QToolButton>
+#include <QSignalBlocker>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QHostInfo>
 #include <QJsonArray>
 #include <QElapsedTimer>
@@ -1960,6 +1965,7 @@ void MainWindow::p3r_setup() {
         p3r_refresh_connect_button();
     });
     auto ruDirect = new QCheckBox(tr("Russian sites directly"), this);
+    p3r_ru_check = ruDirect;
     ruDirect->setObjectName("p3rRuDirect");
     ruDirect->setChecked(NekoGui::dataStore->p3r_ru_direct);
     ruDirect->setToolTip(tr("Sites in .ru / .su / .рф, Russian services (Gosuslugi, banks, Yandex, VK, Mail.ru) and Russian IP addresses open without the proxy.\nEverything else goes through the server."));
@@ -1970,6 +1976,7 @@ void MainWindow::p3r_setup() {
         if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
     });
     auto aiVpn = new QCheckBox(tr("AI and Google via VPN"), this);
+    p3r_ai_check = aiVpn;
     aiVpn->setObjectName("p3rAiVpn");
     aiVpn->setChecked(NekoGui::dataStore->p3r_ai_via_vpn);
     aiVpn->setToolTip(tr("Gemini, ChatGPT, Claude, Perplexity, Copilot, Grok and all of Google (including YouTube and sign-in) always go through the server,\neven with \"Russian sites directly\" or \"only these apps via VPN\". Google must see one country for all requests, otherwise Gemini shows an error."));
@@ -2233,6 +2240,31 @@ void MainWindow::p3r_setup() {
     pasteButton->setToolTip(tr("Add a server link (vless://, vmess://, ss://...) or a subscription link (https://...) from the clipboard"));
     connect(pasteButton, &QPushButton::clicked, this, [=] { p3r_paste_from_clipboard(); });
     ui->horizontalLayout_2->insertWidget(ui->horizontalLayout_2->indexOf(ui->search), pasteButton);
+
+    // profiles "Home / Work / Games"
+    p3r_profile_combo = new QComboBox(this);
+    p3r_profile_combo->setObjectName("p3rProfile");
+    p3r_profile_combo->setMinimumWidth(130);
+    p3r_profile_combo->setToolTip(tr("Profile: VPN mode, apps, site rules and server switch with one click"));
+    auto profileMenuButton = new QToolButton(this);
+    profileMenuButton->setObjectName("p3rProfileMenu");
+    profileMenuButton->setText(QString::fromUtf8("\u2699"));
+    profileMenuButton->setToolTip(tr("Save current settings to the profile, create, rename or delete profiles"));
+    connect(profileMenuButton, &QToolButton::clicked, this, [=] { p3r_profile_menu(); });
+    connect(p3r_profile_combo, &QComboBox::activated, this, [=](int index) {
+        auto name = p3r_profile_combo->itemData(index).toString();
+        if (!name.isEmpty() && name != NekoGui::dataStore->p3r_active_profile) p3r_profile_apply(name);
+    });
+    ui->horizontalLayout_2->insertWidget(ui->horizontalLayout_2->indexOf(pasteButton), p3r_profile_combo);
+    ui->horizontalLayout_2->insertWidget(ui->horizontalLayout_2->indexOf(pasteButton), profileMenuButton);
+    p3r_refresh_profile_combo();
+
+    // mini mode button
+    auto miniButton = new QPushButton(QString::fromUtf8("\u25AD ") + tr("Mini"), this);
+    miniButton->setObjectName("p3rPasteButton");
+    miniButton->setToolTip(tr("Mini mode: a small window on top of all windows"));
+    connect(miniButton, &QPushButton::clicked, this, [=] { p3r_set_mini(true); });
+    ui->horizontalLayout_2->insertWidget(ui->horizontalLayout_2->indexOf(ui->search), miniButton);
     p3r_empty = new P3R::EmptyState(ui->proxyListTable);
     connect(p3r_empty, &P3R::EmptyState::pasteClicked, this, [=] { p3r_paste_from_clipboard(); });
     p3r_empty->hide();
@@ -2293,6 +2325,7 @@ void MainWindow::p3r_refresh_connect_button() {
         text = QString::fromUtf8("\u25B6  ") + tr("CONNECT");
     }
     if (p3r_connect_button->text() != text) p3r_connect_button->setText(text);
+    p3r_update_mini();
     p3r_connect_button->setConnected(connected);
     if (connected && P3R::KillSwitchActive()) p3r_killswitch_release(true);
     if (p3r_last_connected != -1 && p3r_last_connected != int(connected)) {
@@ -2651,6 +2684,7 @@ void MainWindow::p3r_refresh_apps_button() {
 
 void MainWindow::p3r_traffic_sample(qint64 up, qint64 down) {
     if (p3r_banner != nullptr) p3r_banner->addTraffic(up, down);
+    if (p3r_mini != nullptr && p3r_mini->isVisible()) p3r_mini->setSpeed(up, down);
 }
 
 bool MainWindow::p3r_is_favorite(int id) const {
@@ -2728,6 +2762,10 @@ void MainWindow::p3r_apply_dark_hour(bool on) {
 }
 
 void MainWindow::p3r_show_main_window() {
+    if (NekoGui::dataStore->p3r_mini_mode) {
+        p3r_set_mini(true);
+        return;
+    }
     bool tunRestart = NekoGui::dataStore->argv.contains("-flag_restart_tun_on");
     if (!NekoGui::dataStore->p3r_splash || !P3R::animationsEnabled || tunRestart) {
         show();
@@ -3436,12 +3474,243 @@ void MainWindow::p3r_fill_tray_menu() {
     m->addSeparator();
     m->addAction(tr("Check that everything works..."), this, [=] { p3r_show_diagnostics(); });
     m->addAction(tr("Show window"), this, [=] {
+        if (p3r_mini != nullptr && p3r_mini->isVisible()) p3r_set_mini(false);
         show();
         raise();
         activateWindow();
     });
+    auto miniA = m->addAction(tr("Mini mode"), this, [=](bool on) { p3r_set_mini(on); });
+    miniA->setCheckable(true);
+    miniA->setChecked(p3r_mini != nullptr && p3r_mini->isVisible());
+    auto profiles = p3r_profiles_load();
+    if (!profiles.isEmpty()) {
+        auto pm = m->addMenu(tr("Profile"));
+        for (const auto &v: profiles) {
+            auto name = v.toObject()["name"].toString();
+            auto a = pm->addAction(name, this, [=] { p3r_profile_apply(name); });
+            a->setCheckable(true);
+            a->setChecked(name == NekoGui::dataStore->p3r_active_profile);
+        }
+    }
     auto more = m->addMenu(tr("Program"));
     more->addActions(ui->menu_program->actions());
     m->addSeparator();
     m->addAction(ui->menu_exit);
+}
+
+// ======================== NekoBoxP3R: mini mode ========================
+
+void MainWindow::p3r_set_mini(bool on) {
+    NekoGui::dataStore->p3r_mini_mode = on;
+    NekoGui::dataStore->Save();
+    if (!on) {
+        if (p3r_mini != nullptr) p3r_mini->hide();
+        show();
+        raise();
+        activateWindow();
+        return;
+    }
+    if (p3r_mini == nullptr) {
+        p3r_mini = new P3R::MiniWindow();
+        connect(p3r_mini, &P3R::MiniWindow::toggleClicked, this, [=] { p3r_connect_clicked(); });
+        connect(p3r_mini, &P3R::MiniWindow::openMain, this, [=] { p3r_set_mini(false); });
+        connect(p3r_mini, &P3R::MiniWindow::menuRequested, this, [=](const QPoint &pos) {
+            p3r_fill_tray_menu();
+            p3r_tray_menu->popup(pos);
+        });
+        connect(p3r_mini, &P3R::MiniWindow::moved, this, [=](const QPoint &pos) {
+            NekoGui::dataStore->p3r_mini_pos = QString("%1,%2").arg(pos.x()).arg(pos.y());
+            NekoGui::dataStore->Save();
+        });
+        connect(this, &QObject::destroyed, p3r_mini, &QObject::deleteLater);
+        // position: saved, or bottom-right corner of the screen
+        auto xy = NekoGui::dataStore->p3r_mini_pos.split(',');
+        QPoint pos;
+        bool ok = false;
+        if (xy.size() == 2) {
+            pos = QPoint(xy[0].toInt(&ok), xy[1].toInt());
+            bool onScreen = false;
+            for (auto screen: QGuiApplication::screens()) onScreen |= screen->availableGeometry().contains(pos + QPoint(20, 20));
+            ok = ok && onScreen;
+        }
+        if (!ok) {
+            auto area = QGuiApplication::primaryScreen()->availableGeometry();
+            pos = area.bottomRight() - QPoint(p3r_mini->width() + 24, p3r_mini->height() + 24);
+        }
+        p3r_mini->move(pos);
+    }
+    p3r_update_mini();
+    hide();
+    p3r_mini->show();
+    p3r_mini->raise();
+}
+
+void MainWindow::p3r_update_mini() {
+    if (p3r_mini == nullptr) return;
+    if (running != nullptr) {
+        QString mode = NekoGui::dataStore->spmode_vpn ? tr("VPN for all apps") : (NekoGui::dataStore->spmode_system_proxy ? tr("Browser and proxy-aware apps") : tr("local port only"));
+        auto name = P3R::StripFlags(running->bean->name.isEmpty() ? running->bean->DisplayName() : running->bean->name);
+        p3r_mini->setState(1, name, P3R::DetectCountry(running->bean->name), mode);
+    } else {
+        p3r_mini->setState(p3r_best_pending ? 2 : 0, {}, {}, {});
+    }
+}
+
+// ======================== NekoBoxP3R: profiles ========================
+
+QJsonArray MainWindow::p3r_profiles_load() const {
+    return QJsonDocument::fromJson(NekoGui::dataStore->p3r_profiles.toUtf8()).array();
+}
+
+void MainWindow::p3r_profiles_store(const QJsonArray &list) {
+    NekoGui::dataStore->p3r_profiles = QString::fromUtf8(QJsonDocument(list).toJson(QJsonDocument::Compact));
+    NekoGui::dataStore->Save();
+}
+
+QJsonObject MainWindow::p3r_profile_capture(const QString &name) const {
+    auto ds = NekoGui::dataStore;
+    return QJsonObject{
+        {"name", name},
+        {"vpn", ds->spmode_vpn},
+        {"sysproxy", ds->spmode_system_proxy},
+        {"ru_direct", ds->p3r_ru_direct},
+        {"ai_via_vpn", ds->p3r_ai_via_vpn},
+        {"auto_best", ds->p3r_auto_best},
+        {"app_mode", ds->p3r_app_mode},
+        {"apps", QJsonArray::fromStringList(ds->p3r_app_list)},
+        {"direct_domain", ds->routing->direct_domain},
+        {"proxy_domain", ds->routing->proxy_domain},
+        {"direct_ip", ds->routing->direct_ip},
+        {"proxy_ip", ds->routing->proxy_ip},
+        {"server", ds->started_id}, // -1: keep / fastest
+    };
+}
+
+void MainWindow::p3r_refresh_profile_combo() {
+    auto profiles = p3r_profiles_load();
+    if (profiles.isEmpty()) {
+        // first start: three profiles based on the current settings
+        auto home = p3r_profile_capture(tr("Home"));
+        home["vpn"] = true;
+        auto work = p3r_profile_capture(tr("Work"));
+        work["vpn"] = false;
+        work["sysproxy"] = true;
+        auto games = p3r_profile_capture(tr("Games"));
+        games["vpn"] = true;
+        games["app_mode"] = NekoGui::dataStore->p3r_app_mode == 0 ? 1 : NekoGui::dataStore->p3r_app_mode; // listed games go directly
+        profiles = QJsonArray{home, work, games};
+        p3r_profiles_store(profiles);
+    }
+    if (p3r_profile_combo == nullptr) return;
+    QSignalBlocker block(p3r_profile_combo);
+    p3r_profile_combo->clear();
+    p3r_profile_combo->addItem(tr("Profile: none"), QString());
+    int current = 0;
+    for (const auto &v: profiles) {
+        auto name = v.toObject()["name"].toString();
+        p3r_profile_combo->addItem(tr("Profile: %1").arg(name), name);
+        if (name == NekoGui::dataStore->p3r_active_profile) current = p3r_profile_combo->count() - 1;
+    }
+    p3r_profile_combo->setCurrentIndex(current);
+}
+
+void MainWindow::p3r_profile_apply(const QString &name) {
+    QJsonObject prof;
+    for (const auto &v: p3r_profiles_load()) {
+        if (v.toObject()["name"].toString() == name) prof = v.toObject();
+    }
+    if (prof.isEmpty()) return;
+    auto ds = NekoGui::dataStore;
+    ds->p3r_ru_direct = prof["ru_direct"].toBool(ds->p3r_ru_direct);
+    ds->p3r_ai_via_vpn = prof["ai_via_vpn"].toBool(ds->p3r_ai_via_vpn);
+    ds->p3r_auto_best = prof["auto_best"].toBool(ds->p3r_auto_best);
+    ds->p3r_app_mode = prof["app_mode"].toInt(ds->p3r_app_mode);
+    QStringList apps;
+    for (const auto &a: prof["apps"].toArray()) apps << a.toString();
+    ds->p3r_app_list = apps;
+    if (ds->p3r_app_list.isEmpty()) ds->p3r_app_mode = 0;
+    ds->routing->direct_domain = prof["direct_domain"].toString();
+    ds->routing->proxy_domain = prof["proxy_domain"].toString();
+    ds->routing->direct_ip = prof["direct_ip"].toString();
+    ds->routing->proxy_ip = prof["proxy_ip"].toString();
+    ds->routing->Save();
+    ds->p3r_active_profile = name;
+    ds->Save();
+
+    // UI
+    for (auto pair: QList<QPair<QCheckBox *, bool>>{{p3r_ru_check, ds->p3r_ru_direct}, {p3r_ai_check, ds->p3r_ai_via_vpn}, {p3r_auto_best_check, ds->p3r_auto_best}}) {
+        if (pair.first == nullptr) continue;
+        QSignalBlocker block(pair.first);
+        pair.first->setChecked(pair.second);
+    }
+    p3r_refresh_apps_button();
+    p3r_refresh_profile_combo();
+
+    // modes (VPN may ask to restart as admin)
+    bool vpn = prof["vpn"].toBool(ds->spmode_vpn), sys = prof["sysproxy"].toBool(ds->spmode_system_proxy);
+    if (sys != ds->spmode_system_proxy) neko_set_spmode_system_proxy(sys);
+    if (vpn != ds->spmode_vpn) neko_set_spmode_vpn(vpn);
+
+    // server: the saved one, or restart the current connection to apply the rules
+    int server = prof["server"].toInt(-1);
+    if (server >= 0 && NekoGui::profileManager->GetProfile(server) != nullptr) {
+        neko_start(server);
+    } else if (ds->started_id >= 0) {
+        neko_start(ds->started_id);
+    }
+    p3r_notify(tr("Profile: %1").arg(name), tr("Settings of the profile are applied."));
+}
+
+void MainWindow::p3r_profile_menu() {
+    QMenu menu(this);
+    auto active = NekoGui::dataStore->p3r_active_profile;
+    auto save = menu.addAction(active.isEmpty() ? tr("Save current settings to a profile...") : tr("Save current settings to \"%1\"").arg(active));
+    auto add = menu.addAction(tr("New profile from current settings..."));
+    auto rename = menu.addAction(tr("Rename \"%1\"...").arg(active));
+    auto remove = menu.addAction(tr("Delete \"%1\"").arg(active));
+    rename->setEnabled(!active.isEmpty());
+    remove->setEnabled(!active.isEmpty());
+    menu.addSeparator();
+    menu.addAction(tr("The profile stores: VPN / proxy mode, \"Russian sites directly\", \"AI and Google via VPN\", \"Fastest server\", apps, site rules and the current server."))->setEnabled(false);
+    auto chosen = menu.exec(QCursor::pos());
+    if (chosen == nullptr) return;
+
+    auto profiles = p3r_profiles_load();
+    auto indexOf = [&](const QString &name) {
+        for (int i = 0; i < profiles.size(); i++) {
+            if (profiles[i].toObject()["name"].toString() == name) return i;
+        }
+        return -1;
+    };
+    bool ok;
+    if (chosen == add || (chosen == save && active.isEmpty())) {
+        auto name = QInputDialog::getText(this, tr("New profile"), tr("Name, e.g. Home, Work, Games:"), QLineEdit::Normal, "", &ok).trimmed();
+        if (!ok || name.isEmpty()) return;
+        auto i = indexOf(name);
+        if (i >= 0) profiles[i] = p3r_profile_capture(name);
+        else profiles.append(p3r_profile_capture(name));
+        NekoGui::dataStore->p3r_active_profile = name;
+    } else if (chosen == save) {
+        auto i = indexOf(active);
+        if (i >= 0) profiles[i] = p3r_profile_capture(active);
+        else profiles.append(p3r_profile_capture(active));
+        p3r_notify(tr("Profile: %1").arg(active), tr("Current settings are saved to the profile."));
+    } else if (chosen == rename) {
+        auto name = QInputDialog::getText(this, tr("Rename profile"), tr("New name:"), QLineEdit::Normal, active, &ok).trimmed();
+        if (!ok || name.isEmpty() || indexOf(name) >= 0) return;
+        auto i = indexOf(active);
+        if (i < 0) return;
+        auto o = profiles[i].toObject();
+        o["name"] = name;
+        profiles[i] = o;
+        NekoGui::dataStore->p3r_active_profile = name;
+    } else if (chosen == remove) {
+        if (QMessageBox::question(this, "NekoBoxP3R", tr("Delete the profile \"%1\"? The current settings stay as they are.").arg(active)) != QMessageBox::Yes) return;
+        auto i = indexOf(active);
+        if (i >= 0) profiles.removeAt(i);
+        NekoGui::dataStore->p3r_active_profile = "";
+        if (profiles.isEmpty()) profiles.append(p3r_profile_capture(tr("Home"))); // keep at least one, otherwise defaults come back
+    }
+    p3r_profiles_store(profiles);
+    p3r_refresh_profile_combo();
 }

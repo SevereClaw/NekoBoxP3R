@@ -4,6 +4,8 @@
 #include "ui/p3r/P3RWidgets.hpp"
 #include <QPushButton>
 #include <QCheckBox>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QAction>
 
 #include "main/NekoGui.hpp"
@@ -210,6 +212,20 @@ private:
     QMenu *p3r_tray_menu = nullptr;
     void p3r_setup_tray();
     void p3r_fill_tray_menu();
+    // mini mode
+    P3R::MiniWindow *p3r_mini = nullptr;
+    void p3r_set_mini(bool on);
+    void p3r_update_mini();
+    // profiles
+    QCheckBox *p3r_ru_check = nullptr;
+    QCheckBox *p3r_ai_check = nullptr;
+    class QComboBox *p3r_profile_combo = nullptr;
+    QJsonArray p3r_profiles_load() const;
+    void p3r_profiles_store(const QJsonArray &list);
+    QJsonObject p3r_profile_capture(const QString &name) const;
+    void p3r_profile_apply(const QString &name);
+    void p3r_refresh_profile_combo();
+    void p3r_profile_menu();
     bool p3r_pick_running_apps(QStringList &out);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;

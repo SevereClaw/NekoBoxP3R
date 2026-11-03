@@ -2,6 +2,31 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
+    <name>P3R::MiniWindow</name>
+    <message>
+        <source>Click the button: connect / disconnect
+Drag: move
+Double click: open the window
+Right click: menu</source>
+        <translation>Кнопка — подключить / отключить
+Перетащи — переместить
+Двойной клик — открыть окно
+Правый клик — меню</translation>
+    </message>
+    <message>
+        <source>Connecting...</source>
+        <translation>Подключение...</translation>
+    </message>
+    <message>
+        <source>Not connected</source>
+        <translation>Не подключено</translation>
+    </message>
+    <message>
+        <source>press the button to connect</source>
+        <translation>нажми кнопку, чтобы подключиться</translation>
+    </message>
+</context>
+<context>
     <name>P3R</name>
     <message>
         <source>no download</source>
@@ -1173,6 +1198,98 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>Profile: VPN mode, apps, site rules and server switch with one click</source>
+        <translation>Профиль: режим VPN, программы, правила сайтов и сервер переключаются одним кликом</translation>
+    </message>
+    <message>
+        <source>Save current settings to the profile, create, rename or delete profiles</source>
+        <translation>Сохранить текущие настройки в профиль, создать, переименовать или удалить профиль</translation>
+    </message>
+    <message>
+        <source>Mini</source>
+        <translation>Мини</translation>
+    </message>
+    <message>
+        <source>Mini mode: a small window on top of all windows</source>
+        <translation>Мини-режим: маленькое окошко поверх всех окон</translation>
+    </message>
+    <message>
+        <source>Mini mode</source>
+        <translation>Мини-режим</translation>
+    </message>
+    <message>
+        <source>Profile</source>
+        <translation>Профиль</translation>
+    </message>
+    <message>
+        <source>Home</source>
+        <translation>Дом</translation>
+    </message>
+    <message>
+        <source>Work</source>
+        <translation>Работа</translation>
+    </message>
+    <message>
+        <source>Games</source>
+        <translation>Игры</translation>
+    </message>
+    <message>
+        <source>Profile: none</source>
+        <translation>Профиль: нет</translation>
+    </message>
+    <message>
+        <source>Profile: %1</source>
+        <translation>Профиль: %1</translation>
+    </message>
+    <message>
+        <source>Settings of the profile are applied.</source>
+        <translation>Настройки профиля применены.</translation>
+    </message>
+    <message>
+        <source>Save current settings to a profile...</source>
+        <translation>Сохранить текущие настройки в профиль...</translation>
+    </message>
+    <message>
+        <source>Save current settings to "%1"</source>
+        <translation>Сохранить текущие настройки в «%1»</translation>
+    </message>
+    <message>
+        <source>New profile from current settings...</source>
+        <translation>Новый профиль из текущих настроек...</translation>
+    </message>
+    <message>
+        <source>Rename "%1"...</source>
+        <translation>Переименовать «%1»...</translation>
+    </message>
+    <message>
+        <source>Delete "%1"</source>
+        <translation>Удалить «%1»</translation>
+    </message>
+    <message>
+        <source>The profile stores: VPN / proxy mode, "Russian sites directly", "AI and Google via VPN", "Fastest server", apps, site rules and the current server.</source>
+        <translation>В профиле хранятся: режим VPN/прокси, «Российские сайты напрямую», «ИИ и Google через VPN», «Самый быстрый», программы, правила сайтов и текущий сервер.</translation>
+    </message>
+    <message>
+        <source>Name, e.g. Home, Work, Games:</source>
+        <translation>Название, например Дом, Работа, Игры:</translation>
+    </message>
+    <message>
+        <source>Current settings are saved to the profile.</source>
+        <translation>Текущие настройки сохранены в профиль.</translation>
+    </message>
+    <message>
+        <source>Rename profile</source>
+        <translation>Переименовать профиль</translation>
+    </message>
+    <message>
+        <source>New name:</source>
+        <translation>Новое название:</translation>
+    </message>
+    <message>
+        <source>Delete the profile "%1"? The current settings stay as they are.</source>
+        <translation>Удалить профиль «%1»? Текущие настройки останутся как есть.</translation>
+    </message>
     <message>
         <source>Check everything</source>
         <translation>Проверить всё</translation>

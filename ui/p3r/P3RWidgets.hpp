@@ -89,6 +89,39 @@ namespace P3R {
         void paintEvent(QPaintEvent *) override;
     };
 
+    // Mini mode: a small always-on-top panel with the connect button, server, flag and speed
+    class MiniWindow : public QWidget {
+        Q_OBJECT
+    public:
+        explicit MiniWindow();
+        // state: 0 disconnected, 1 connected, 2 busy (checking / connecting)
+        void setState(int state, const QString &server, const QString &countryCode, const QString &mode);
+        void setSpeed(qint64 up, qint64 down);
+    signals:
+        void toggleClicked();
+        void openMain();
+        void menuRequested(const QPoint &globalPos);
+        void moved(const QPoint &pos);
+
+    protected:
+        void paintEvent(QPaintEvent *) override;
+        void mousePressEvent(QMouseEvent *) override;
+        void mouseMoveEvent(QMouseEvent *) override;
+        void mouseReleaseEvent(QMouseEvent *) override;
+        void mouseDoubleClickEvent(QMouseEvent *) override;
+        void contextMenuEvent(QContextMenuEvent *) override;
+        void enterEvent(QEnterEvent *) override;
+        void leaveEvent(QEvent *) override;
+
+    private:
+        QRectF buttonRect() const;
+        int m_state = 0;
+        QString m_server, m_code, m_mode;
+        qint64 m_up = -1, m_down = -1;
+        bool m_hover = false, m_dragging = false, m_pressOnButton = false;
+        QPoint m_dragOffset, m_pressPos;
+    };
+
     // Slanted title banner at the top of the main window
     class Banner : public QWidget {
         Q_OBJECT

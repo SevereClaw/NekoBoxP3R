@@ -125,6 +125,10 @@ namespace NekoGui {
         bool p3r_dark_hour = true;       // NekoBoxP3R: green theme 00:00-01:00
         bool p3r_splash = true;          // NekoBoxP3R: start-up splash
         QStringList p3r_sub_notified = {}; // NekoBoxP3R: "gid:expire:kind" already notified
+        bool p3r_mini_mode = false;        // NekoBoxP3R: mini window instead of the main one
+        QString p3r_mini_pos = "";         // NekoBoxP3R: "x,y"
+        QString p3r_profiles = "";         // NekoBoxP3R: JSON array of profiles
+        QString p3r_active_profile = "";   // NekoBoxP3R: name of the active profile
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";
