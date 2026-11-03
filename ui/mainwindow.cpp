@@ -37,6 +37,7 @@
 #endif
 
 #include <QClipboard>
+#include <QSaveFile>
 #include <QPlainTextEdit>
 #include <QStandardPaths>
 #include <QSysInfo>
@@ -702,6 +703,7 @@ void MainWindow::on_menu_exit_triggered() {
     if (mu_exit.tryLock()) {
         NekoGui::dataStore->prepare_exit = true;
         if (P3R::KillSwitchActive()) P3R::KillSwitchUnblock(); // NekoBoxP3R: never leave the internet blocked
+        p3r_write_status(true);
         //
         neko_set_spmode_system_proxy(false, false);
         neko_set_spmode_vpn(false, false);
@@ -2293,6 +2295,10 @@ void MainWindow::p3r_setup() {
         menu.exec(ui->tableWidget_conn->viewport()->mapToGlobal(pos));
     });
     QTimer::singleShot(4000, this, [=] { p3r_check_ip(); });
+    auto statusTimer = new QTimer(this);
+    statusTimer->setInterval(30 * 1000);
+    connect(statusTimer, &QTimer::timeout, this, [=] { p3r_write_status(); });
+    statusTimer->start();
 
     // subscriptions: remaining traffic and expiry (tabs + notifications)
     auto subTimer = new QTimer(this);
@@ -2400,6 +2406,18 @@ void MainWindow::p3r_refresh_connect_button() {
     if (p3r_connect_button->text() != text) p3r_connect_button->setText(text);
     p3r_update_mini();
     p3r_connect_button->setConnected(connected);
+    {
+        int rid = connected ? running->id : -1;
+        if (rid != p3r_status_last_id) {
+            if (connected && p3r_status_last_id < 0) p3r_connected_since = QDateTime::currentSecsSinceEpoch();
+            if (!connected) {
+                p3r_connected_since = 0;
+                p3r_exit_country.clear();
+            }
+            p3r_status_last_id = rid;
+            p3r_write_status();
+        }
+    }
     if (connected && P3R::KillSwitchActive()) p3r_killswitch_release(true);
     if (p3r_last_connected != -1 && p3r_last_connected != int(connected)) {
         QTimer::singleShot(connected ? 2500 : 800, this, [=] { p3r_check_ip(); });
@@ -2897,6 +2915,10 @@ void MainWindow::p3r_check_ip() {
     int state = viaProxy ? 1 : 2;
     ask("https://ipinfo.io/json", [=](const QJsonObject &j) {
             p3r_banner->setIpInfo(state, j["ip"].toString(), j["country"].toString(), j["city"].toString());
+            if (state == 1 && running != nullptr) {
+                p3r_exit_country = j["country"].toString();
+                p3r_write_status();
+            }
         },
         [=] {
             // fallback service
@@ -2906,6 +2928,10 @@ void MainWindow::p3r_check_ip() {
                         return;
                     }
                     p3r_banner->setIpInfo(state, j["query"].toString(), j["countryCode"].toString(), j["city"].toString());
+                    if (state == 1 && running != nullptr) {
+                        p3r_exit_country = j["countryCode"].toString();
+                        p3r_write_status();
+                    }
                 },
                 [=] { p3r_banner->setIpInfo(3, {}, {}, {}); });
         });
@@ -4002,4 +4028,37 @@ void MainWindow::p3r_show_report() {
         QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
     });
     d.exec();
+}
+
+// ======================== NekoBoxP3R: status file for other programs ========================
+// %APPDATA%\NekoBoxP3R\status.json - read by DiscordMonitror (VPN card in Discord). Updated on every
+// change and every 30 s ("updated"), so a stale file means NekoBoxP3R is closed.
+
+void MainWindow::p3r_write_status(bool exiting) {
+    auto base = qEnvironmentVariable("APPDATA");
+    if (base.isEmpty()) base = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    QDir dir(base + "/NekoBoxP3R");
+    if (!dir.exists() && !dir.mkpath(".")) return;
+
+    bool connected = !exiting && running != nullptr;
+    QJsonObject o{
+        {"connected", connected},
+        {"updated", QDateTime::currentSecsSinceEpoch()},
+        {"pid", QCoreApplication::applicationPid()},
+        {"version", QString(P3R_VERSION)},
+        {"repo", "https://github.com/SevereClaw/NekoBoxP3R"},
+    };
+    if (connected) {
+        auto name = P3R::StripFlags(running->bean->name.isEmpty() ? running->bean->DisplayName() : running->bean->name);
+        auto country = !p3r_exit_country.isEmpty() ? p3r_exit_country : P3R::DetectCountry(running->bean->name);
+        o["server"] = name;
+        o["country"] = country;
+        o["type"] = running->bean->DisplayType();
+        o["mode"] = NekoGui::dataStore->spmode_vpn ? "vpn" : (NekoGui::dataStore->spmode_system_proxy ? "proxy" : "port");
+        o["since"] = p3r_connected_since > 0 ? p3r_connected_since : QDateTime::currentSecsSinceEpoch();
+    }
+    QSaveFile f(dir.filePath("status.json"));
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(QJsonDocument(o).toJson(QJsonDocument::Compact));
+    f.commit();
 }

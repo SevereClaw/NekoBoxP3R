@@ -285,6 +285,11 @@ private:
 public:
     QString p3r_last_diag; // last "check everything" result for the report
     void p3r_show_report();
+    // status file for other programs (DiscordMonitror shows a VPN card in Discord)
+    qint64 p3r_connected_since = 0;
+    int p3r_status_last_id = -2;
+    QString p3r_exit_country; // country of the external IP through the proxy (from "My IP")
+    void p3r_write_status(bool exiting = false);
 
 #endif // MW_INTERFACE
 };
