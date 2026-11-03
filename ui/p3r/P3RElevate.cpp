@@ -7,8 +7,9 @@
 #include <QProcess>
 
 #ifdef Q_OS_WIN
-#include <windows.h>
+// WinCommander first: windows.h defines SW_HIDE etc. as macros
 #include "3rdparty/WinCommander.hpp"
+#include <windows.h>
 #endif
 
 namespace P3R {
@@ -61,7 +62,7 @@ namespace P3R {
         WinCommander::runProcessElevated("powershell.exe",
                                          {"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                                           "-WindowStyle", "Hidden", "-EncodedCommand", QString::fromLatin1(utf16.toBase64())},
-                                         "", WinCommander::SW_HIDE, true);
+                                         "", 0 /* hidden */, true);
         return ElevatedTaskExists();
 #else
         return false;
@@ -71,7 +72,7 @@ namespace P3R {
     bool ElevatedTaskDelete() {
 #ifdef Q_OS_WIN
         if (!ElevatedTaskExists()) return true;
-        WinCommander::runProcessElevated("schtasks", {"/Delete", "/TN", kTaskName, "/F"}, "", WinCommander::SW_HIDE, true);
+        WinCommander::runProcessElevated("schtasks", {"/Delete", "/TN", kTaskName, "/F"}, "", 0 /* hidden */, true);
         return !ElevatedTaskExists();
 #else
         return true;
