@@ -2172,6 +2172,19 @@ void MainWindow::p3r_setup() {
         }
     });
     ui->menu_program->insertAction(first, actionDns);
+#ifdef Q_OS_WIN
+    auto actionWinDns = new QAction(tr("Fix the Windows DNS leak (recommended)"), this);
+    actionWinDns->setCheckable(true);
+    actionWinDns->setChecked(P3R::WindowsDnsFixActive());
+    actionWinDns->setToolTip(tr("Turns off \"smart multi-homed name resolution\" in Windows: it sends every DNS query through all network adapters at once,\nso your provider sees the sites even with VPN. Safe for the rest of the traffic; fully applies after a restart of the computer."));
+    connect(actionWinDns, &QAction::triggered, this, [=](bool checked) {
+        bool ok = P3R::WindowsDnsFixSet(checked);
+        actionWinDns->setChecked(P3R::WindowsDnsFixActive());
+        if (!ok) MessageBoxWarning("NekoBoxP3R", tr("Could not change the Windows setting (administrator rights are needed)."));
+        else if (checked) MessageBoxInfo("NekoBoxP3R", tr("Done. Restart the computer so Windows applies it completely, then run \"Check everything\" again."));
+    });
+    ui->menu_program->insertAction(first, actionWinDns);
+#endif
     ui->menu_program->insertAction(first, actionKill);
     ui->menu_program->insertAction(first, actionUnblock);
 #endif
@@ -3197,11 +3210,22 @@ void MainWindow::p3r_show_diagnostics() {
     auto btnAgain = new QPushButton(tr("Check again"), d);
     auto btnCopy = new QPushButton(tr("Copy report"), d);
     auto btnBug = new QPushButton(tr("Problem report..."), d);
+    auto btnFixDns = new QPushButton(tr("Fix DNS leak"), d);
+    btnFixDns->setVisible(false);
+    connect(btnFixDns, &QPushButton::clicked, d, [=] {
+        if (P3R::WindowsDnsFixSet(true)) {
+            btnFixDns->setVisible(false);
+            MessageBoxInfo("NekoBoxP3R", tr("Done. Restart the computer so Windows applies it completely, then run \"Check everything\" again."));
+        } else {
+            MessageBoxWarning("NekoBoxP3R", tr("Could not change the Windows setting (administrator rights are needed)."));
+        }
+    });
     connect(btnBug, &QPushButton::clicked, this, [=] { p3r_show_report(); });
     auto btnClose = new QPushButton(tr("Close"), d);
     buttons->addWidget(btnAgain);
     buttons->addWidget(btnCopy);
     buttons->addWidget(btnBug);
+    buttons->addWidget(btnFixDns);
     buttons->addStretch();
     buttons->addWidget(btnClose);
     layout->addLayout(buttons);
@@ -3456,8 +3480,11 @@ void MainWindow::p3r_show_diagnostics() {
                             else if (russian) setRow(row, 2, tr("DNS leak"), tr("DNS goes through Russia: %1").arg(servers.join(", ")),
                                                      NekoGui::dataStore->p3r_dns_protect
                                                          ? tr("Protection is on but the leak is still there: reconnect (press DISCONNECT and CONNECT) so the new rules apply, then check again.")
-                                                         : tr("Windows sends DNS around the tunnel. Try Program -> \"DNS leak protection\" and reconnect (if the internet stops working, turn it off again)."));
+                                                         : (P3R::WindowsDnsFixActive()
+                                                                ? tr("The Windows fix is on: restart the computer if you have not yet, then check again.")
+                                                                : tr("Windows sends DNS queries through every adapter at once. Press \"Fix DNS leak\" below (one Windows setting, the rest of the traffic is not affected), then restart the computer.")));
                             else setRow(row, 0, tr("DNS leak"), tr("no leak: %1").arg(servers.join(", ")));
+                            if (russian && !P3R::WindowsDnsFixActive()) btnFixDns->setVisible(true);
                             next();
                         });
                     });

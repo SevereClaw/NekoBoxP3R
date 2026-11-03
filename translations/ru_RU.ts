@@ -1199,6 +1199,36 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Fix the Windows DNS leak (recommended)</source>
+        <translation>Исправить утечку DNS в Windows (рекомендуется)</translation>
+    </message>
+    <message>
+        <source>Turns off "smart multi-homed name resolution" in Windows: it sends every DNS query through all network adapters at once,
+so your provider sees the sites even with VPN. Safe for the rest of the traffic; fully applies after a restart of the computer.</source>
+        <translation>Выключает в Windows «умное разрешение имён на нескольких адаптерах»: система отправляет каждый DNS-запрос сразу через все сетевые адаптеры,
+и провайдер видит сайты даже с VPN. Остальной трафик не затрагивается; полностью применяется после перезагрузки компьютера.</translation>
+    </message>
+    <message>
+        <source>Could not change the Windows setting (administrator rights are needed).</source>
+        <translation>Не удалось изменить настройку Windows (нужны права администратора).</translation>
+    </message>
+    <message>
+        <source>Done. Restart the computer so Windows applies it completely, then run "Check everything" again.</source>
+        <translation>Готово. Перезагрузи компьютер, чтобы Windows полностью применила настройку, и снова нажми «Проверить всё».</translation>
+    </message>
+    <message>
+        <source>The Windows fix is on: restart the computer if you have not yet, then check again.</source>
+        <translation>Исправление Windows включено: перезагрузи компьютер, если ещё не перезагружал, и проверь снова.</translation>
+    </message>
+    <message>
+        <source>Windows sends DNS queries through every adapter at once. Press "Fix DNS leak" below (one Windows setting, the rest of the traffic is not affected), then restart the computer.</source>
+        <translation>Windows отправляет DNS-запросы сразу через все адаптеры. Нажми «Исправить утечку DNS» внизу (одна настройка Windows, остальной трафик не затрагивается) и перезагрузи компьютер.</translation>
+    </message>
+    <message>
+        <source>Fix DNS leak</source>
+        <translation>Исправить утечку DNS</translation>
+    </message>
+    <message>
         <source>In "VPN for all apps" mode Windows sends DNS queries through every network adapter, so your provider sees which sites you open.
 This turns on strict routing: Windows Firewall rules keep DNS inside the tunnel.
 On some systems it breaks the internet in VPN mode: if so, turn it off again.</source>

@@ -25,6 +25,11 @@ namespace P3R {
     // True while the block is in place (marker file in the config dir).
     bool KillSwitchActive();
 
+    // Windows "smart multi-homed name resolution" sends DNS through every adapter (DNS leak around the tunnel).
+    // Policy DisableSmartNameResolution / DisableSmartProtocolReordering turns it off (needs admin; full effect after reboot).
+    bool WindowsDnsFixActive();
+    bool WindowsDnsFixSet(bool on);
+
     // Names of running programs (e.g. "Discord.exe"), sorted, without duplicates.
     QStringList RunningProcessNames();
 } // namespace P3R

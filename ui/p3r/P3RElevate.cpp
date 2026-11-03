@@ -158,6 +158,46 @@ namespace P3R {
 #endif
     }
 
+    static const char *kDnsKey = "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient";
+
+    bool WindowsDnsFixActive() {
+#ifdef Q_OS_WIN
+        QProcess p;
+        p.setProgram("reg");
+        p.setArguments({"query", kDnsKey, "/v", "DisableSmartNameResolution"});
+        p.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *a) { a->flags |= CREATE_NO_WINDOW; });
+        p.start();
+        if (!p.waitForFinished(8000) || p.exitCode() != 0) return false;
+        return QString::fromLocal8Bit(p.readAllStandardOutput()).contains("0x1");
+#else
+        return false;
+#endif
+    }
+
+    bool WindowsDnsFixSet(bool on) {
+#ifdef Q_OS_WIN
+        QList<QStringList> cmds;
+        for (const char *v: {"DisableSmartNameResolution", "DisableSmartProtocolReordering"}) {
+            if (on) cmds << QStringList{"add", kDnsKey, "/v", v, "/t", "REG_DWORD", "/d", "1", "/f"};
+            else cmds << QStringList{"delete", kDnsKey, "/v", v, "/f"};
+        }
+        bool ok = true;
+        for (const auto &c: cmds) {
+            int r = runHidden("reg", c, 10000);
+            if (r != 0) {
+                // not admin: ask once through UAC
+                WinCommander::runProcessElevated("reg", c, "", 0 /* hidden */, true);
+            }
+        }
+        runHidden("ipconfig", {"/flushdns"}, 10000);
+        ok = WindowsDnsFixActive() == on;
+        return ok;
+#else
+        Q_UNUSED(on)
+        return false;
+#endif
+    }
+
     QStringList RunningProcessNames() {
         QStringList names;
 #ifdef Q_OS_WIN
