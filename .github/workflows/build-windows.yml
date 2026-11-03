@@ -1,0 +1,104 @@
+name: Build NekoBoxP3R (Windows)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-go:
+    name: Go core + updater + geodata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+      - name: Build Go parts
+        shell: bash
+        run: |
+          ./libs/get_source.sh
+          GOOS=windows GOARCH=amd64 ./libs/build_go.sh
+          ./libs/build_public_res.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-windows64
+          path: deployment
+
+  build-cpp:
+    name: Qt GUI
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - uses: seanmiddleditch/gha-setup-ninja@v5
+      - name: Download Qt SDK
+        shell: bash
+        env:
+          DL_QT_VER: "6.7"
+        run: bash ./libs/download_qtsdk_win.sh
+      - name: Cache dependencies
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: libs/deps
+          key: deps-windows-x64-${{ hashFiles('libs/build_deps_*.sh') }}-qt6.7
+      - name: Build dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: bash
+        run: ./libs/build_deps_all.sh
+      - name: Build GUI
+        shell: bash
+        env:
+          DL_QT_VER: "6.7"
+          CC: cl.exe
+          CXX: cl.exe
+        run: |
+          source libs/env_qtsdk.sh $PWD/qtsdk/Qt
+          mkdir build
+          cd build
+          cmake -GNinja -DQT_VERSION_MAJOR=6 -DCMAKE_BUILD_TYPE=Release ..
+          ninja
+          cd ..
+          ./libs/deploy_windows64.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-windows64
+          path: deployment/windows64
+
+  pack:
+    name: Pack zip
+    needs: [build-go, build-cpp]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dl
+      - name: Assemble nekoray folder
+        run: |
+          mkdir -p out/nekoray
+          cp -r dl/go-windows64/windows64/* out/nekoray/
+          cp -r dl/go-windows64/public_res/* out/nekoray/
+          cp -r dl/gui-windows64/* out/nekoray/
+          ls -la out/nekoray
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NekoBoxP3R-windows64
+          path: out
+      - name: Zip
+        if: startsWith(github.ref, 'refs/tags/')
+        run: cd out && zip -r ../NekoBoxP3R-${{ github.ref_name }}-windows64.zip nekoray
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: NekoBoxP3R-${{ github.ref_name }}-windows64.zip

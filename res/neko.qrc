@@ -13,6 +13,7 @@
         <file>icon/material/swap-vertical.svg</file>
         <file>icon/material/delete.svg</file>
         <file>icon/material/swap-horizontal.svg</file>
+        <file alias="themes/p3r/p3r.css">theme/p3r/p3r.css</file>
     </qresource>
     <qresource prefix="/neko">
         <file alias="nekobox.png">public/nekobox.png</file>

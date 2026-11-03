@@ -1,0 +1,121 @@
+QPalette{background:#0A1A33;}
+/* ===== Persona 3 theme for NekoBox ===== */
+*{outline:0px;color:#EAF6FF;font-family:"Segoe UI";font-size:10pt;}
+
+QMainWindow,QDialog{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #0E2D5E,stop:0.55 #0A1A33,stop:1 #050C1A);}
+QWidget{selection-background-color:#2EE6FF;selection-color:#061026;}
+
+/* ---- tool bar buttons (Program / Preferences / Server ...) ---- */
+QToolButton#toolButton_program,QToolButton#toolButton_preferences,QToolButton#toolButton_server,QToolButton#toolButton_ads,QToolButton#toolButton_document,QToolButton#toolButton_update,QToolButton#toolButton_url_test{
+color:#EAF6FF;background:#0F2547;border:none;border-left:4px solid #2EE6FF;
+padding:6px 12px;margin:2px;font-weight:800;font-style:italic;font-size:11pt;}
+QToolButton#toolButton_program:hover,QToolButton#toolButton_preferences:hover,QToolButton#toolButton_server:hover,QToolButton#toolButton_ads:hover,QToolButton#toolButton_document:hover,QToolButton#toolButton_update:hover,QToolButton#toolButton_url_test:hover{background:#1B4A86;border-left-color:#FFFFFF;}
+QToolButton#toolButton_program:pressed,QToolButton#toolButton_preferences:pressed,QToolButton#toolButton_server:pressed,QToolButton#toolButton_ads:pressed,QToolButton#toolButton_document:pressed,QToolButton#toolButton_update:pressed,QToolButton#toolButton_url_test:pressed,QToolButton#toolButton_program:open,QToolButton#toolButton_preferences:open,QToolButton#toolButton_server:open,QToolButton#toolButton_ads:open,QToolButton#toolButton_document:open,QToolButton#toolButton_update:open,QToolButton#toolButton_url_test:open{background:#EAF6FF;color:#0A1A33;border-left-color:#FF2B3B;}
+QToolButton#toolButton_program::menu-indicator,QToolButton#toolButton_preferences::menu-indicator,QToolButton#toolButton_server::menu-indicator,QToolButton#toolButton_ads::menu-indicator,QToolButton#toolButton_document::menu-indicator,QToolButton#toolButton_update::menu-indicator,QToolButton#toolButton_url_test::menu-indicator{image:none;width:0px;}
+QDialog QToolButton{background:#0F2547;border:1px solid #1F4F8A;padding:3px;}
+QDialog QToolButton:hover{border-color:#2EE6FF;}
+
+/* ---- big VPN / System Proxy switches ---- */
+QCheckBox#checkBox_VPN,QCheckBox#checkBox_SystemProxy{font-weight:800;font-style:italic;font-size:11pt;spacing:8px;padding:2px 6px;}
+QCheckBox#checkBox_VPN::indicator,QCheckBox#checkBox_SystemProxy::indicator{width:30px;height:14px;border-radius:7px;}
+QCheckBox#checkBox_VPN::indicator:checked{background:#FF2B3B;border:2px solid #FFFFFF;}
+QCheckBox#checkBox_SystemProxy::indicator:checked{background:#2EE6FF;border:2px solid #FFFFFF;}
+QCheckBox#checkBox_VPN:checked{color:#FF6B76;}
+QCheckBox#checkBox_SystemProxy:checked{color:#2EE6FF;}
+
+/* ---- inputs ---- */
+QLineEdit,QTextEdit,QPlainTextEdit,QSpinBox,QDoubleSpinBox,QComboBox,QDateEdit,QTimeEdit,QDateTimeEdit{
+background:#061026;border:1px solid #1F4F8A;border-radius:0px;padding:4px 6px;}
+QLineEdit:hover,QTextEdit:hover,QPlainTextEdit:hover,QSpinBox:hover,QDoubleSpinBox:hover,QComboBox:hover,
+QLineEdit:focus,QTextEdit:focus,QPlainTextEdit:focus,QSpinBox:focus,QDoubleSpinBox:focus,QComboBox:focus{border:1px solid #2EE6FF;}
+QLineEdit:read-only{background:#0F2547;color:#9FC3E6;}
+QLineEdit:disabled,QComboBox:disabled,QSpinBox:disabled{color:#5B7A9C;border-color:#16345C;}
+QLineEdit[echoMode="2"]{lineedit-password-character:9679;}
+QLineEdit#search{min-width:180px;padding:5px 8px;border:1px solid #2EE6FF;}
+
+QComboBox::drop-down{subcontrol-origin:padding;subcontrol-position:top right;width:22px;border:none;background:#1B4A86;}
+QComboBox::down-arrow{image:url(:/qss/blacksoft/add_bottom.png);width:10px;height:10px;}
+QComboBox QAbstractItemView{background:#0A1A33;border:1px solid #2EE6FF;selection-background-color:#EAF6FF;selection-color:#0A1A33;}
+QSpinBox::up-button,QDoubleSpinBox::up-button{image:url(:/qss/blacksoft/add_top.png);width:10px;height:10px;padding:2px 5px 0px 0px;}
+QSpinBox::down-button,QDoubleSpinBox::down-button{image:url(:/qss/blacksoft/add_bottom.png);width:10px;height:10px;padding:0px 5px 2px 0px;}
+
+/* ---- push buttons ---- */
+QPushButton{
+color:#EAF6FF;background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #1B4A86,stop:1 #0F2547);
+border:1px solid #2EE6FF;border-radius:0px;padding:6px 16px;min-height:16px;font-weight:700;font-style:italic;}
+QPushButton:hover{background:#2EE6FF;color:#061026;}
+QPushButton:pressed{background:#EAF6FF;color:#061026;}
+QPushButton:default{border:2px solid #FFFFFF;}
+QPushButton:disabled{color:#5B7A9C;border-color:#16345C;background:#0A1A33;}
+
+/* ---- check boxes / radios ---- */
+QCheckBox,QRadioButton{spacing:6px;}
+QCheckBox::indicator,QGroupBox::indicator,QTableView::indicator,QListView::indicator,QTreeView::indicator{width:14px;height:14px;border:2px solid #2EE6FF;background:#061026;}
+QCheckBox::indicator:hover{border-color:#FFFFFF;}
+QCheckBox::indicator:checked,QGroupBox::indicator:checked,QTableView::indicator:checked,QListView::indicator:checked,QTreeView::indicator:checked{background:#2EE6FF;border-color:#FFFFFF;}
+QCheckBox::indicator:indeterminate{background:#1B4A86;}
+QCheckBox::indicator:disabled{border-color:#16345C;}
+QRadioButton::indicator{width:12px;height:12px;border:2px solid #2EE6FF;border-radius:8px;background:#061026;}
+QRadioButton::indicator:checked{background:#2EE6FF;border-color:#FFFFFF;}
+
+/* ---- group boxes, frames ---- */
+QGroupBox{border:1px solid #1F4F8A;border-top:3px solid #2EE6FF;margin-top:3ex;padding-top:6px;}
+QGroupBox::title{subcontrol-origin:margin;left:10px;padding:0px 6px;color:#061026;background:#2EE6FF;font-weight:800;font-style:italic;}
+.QFrame{border:1px solid #1F4F8A;}
+
+/* ---- tabs (server groups, log / connections) ---- */
+QTabWidget::pane{border:1px solid #1F4F8A;border-top:2px solid #2EE6FF;background:#0A1A33;top:-1px;}
+QTabBar::tab{background:#0F2547;color:#9FC3E6;padding:6px 16px;margin-right:3px;border:none;font-weight:700;font-style:italic;}
+QTabBar::tab:hover{background:#1B4A86;color:#FFFFFF;}
+QTabBar::tab:selected{background:#2EE6FF;color:#061026;}
+
+/* ---- server list / tables ---- */
+QTableView,QTableWidget,QListView,QListWidget,QTreeView,QTreeWidget{
+background:#081530;alternate-background-color:#0C1E3E;border:none;gridline-color:#13305A;
+selection-background-color:#EAF6FF;selection-color:#0A1A33;}
+QTableView::item,QListView::item,QTreeView::item{padding:4px 6px;border:none;}
+QTableView::item:hover,QListView::item:hover,QTreeView::item:hover{background:#163E73;}
+QTableView::item:selected,QListView::item:selected,QTreeView::item:selected{
+background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #FFFFFF,stop:0.7 #EAF6FF,stop:1 #2EE6FF);color:#0A1A33;font-weight:700;}
+QHeaderView{background:#0A1A33;border:none;}
+QHeaderView::section{background:#0F2547;color:#2EE6FF;padding:6px;border:none;border-right:1px solid #1F4F8A;border-bottom:2px solid #2EE6FF;font-weight:800;font-style:italic;}
+QTableCornerButton::section{background:#0F2547;border:none;}
+
+/* ---- log ---- */
+QTextBrowser#masterLogBrowser,QTextBrowser{background:#050C1A;color:#BFE6FF;border:none;font-family:"Consolas";font-size:9pt;}
+
+/* ---- status bar labels ---- */
+QLabel#label_running{color:#2EE6FF;font-weight:800;font-style:italic;font-size:11pt;}
+QLabel#label_speed,QLabel#label_inbound{color:#9FC3E6;}
+
+/* ---- menus ---- */
+QMenuBar{background:#061026;border-bottom:1px solid #1F4F8A;}
+QMenuBar::item{background:transparent;padding:4px 12px;}
+QMenuBar::item:selected{background:#2EE6FF;color:#061026;}
+QMenu{background:#0A1A33;border:1px solid #2EE6FF;padding:4px 0px;}
+QMenu::item{padding:6px 28px 6px 24px;background:transparent;}
+QMenu::item:selected{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #FFFFFF,stop:1 #2EE6FF);color:#0A1A33;font-weight:700;}
+QMenu::item:disabled{color:#5B7A9C;}
+QMenu::separator{height:1px;background:#1F4F8A;margin:4px 8px;}
+QMenu::indicator{width:16px;height:13px;left:4px;}
+QMenu::indicator:checked{image:url(:/qss/blacksoft/menu_checked.png);background:#FF2B3B;}
+QMenu::right-arrow{image:url(:/qss/blacksoft/arrow_right.png);width:10px;height:10px;right:8px;}
+
+/* ---- scroll bars ---- */
+QScrollBar:vertical{background:#061026;width:10px;margin:0px;}
+QScrollBar:horizontal{background:#061026;height:10px;margin:0px;}
+QScrollBar::handle:vertical{background:#1F4F8A;min-height:30px;}
+QScrollBar::handle:horizontal{background:#1F4F8A;min-width:30px;}
+QScrollBar::handle:hover{background:#2EE6FF;}
+QScrollBar::add-line,QScrollBar::sub-line{width:0px;height:0px;border:none;background:none;}
+QScrollBar::add-page,QScrollBar::sub-page{background:none;}
+
+/* ---- splitter, tooltip, progress, dialogs ---- */
+QSplitter::handle{background:#13305A;}
+QSplitter::handle:hover{background:#2EE6FF;}
+QToolTip{background:#EAF6FF;color:#0A1A33;border:1px solid #2EE6FF;padding:4px;}
+QProgressBar{background:#061026;border:1px solid #1F4F8A;text-align:center;}
+QProgressBar::chunk{background:#2EE6FF;}
+QDialogButtonBox QPushButton{min-width:80px;}
+QMessageBox{background:#0A1A33;}
+QMessageBox QLabel{color:#EAF6FF;}
