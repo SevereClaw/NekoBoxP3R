@@ -117,7 +117,7 @@ namespace NekoGui {
         bool p3r_ai_via_vpn = true;     // NekoBoxP3R: Gemini, ChatGPT, Claude... always via proxy
         bool p3r_failover = true;       // NekoBoxP3R: switch to the fastest server when the current one dies
         bool p3r_killswitch = false;    // NekoBoxP3R: block internet if VPN drops unexpectedly
-        bool p3r_dns_protect = true;    // NekoBoxP3R: strict_route in TUN (stops Windows sending DNS around the tunnel)
+        bool p3r_dns_protect = false;   // NekoBoxP3R: strict_route in TUN (off by default: on some systems it blocks all traffic)
         int p3r_app_mode = 0;           // NekoBoxP3R: 0 off, 1 listed apps direct, 2 only listed apps via proxy
         QStringList p3r_app_list = {};  // NekoBoxP3R: exe names, e.g. "Discord.exe"
         bool p3r_notifications = true;  // NekoBoxP3R: Windows notifications

@@ -2150,11 +2150,26 @@ void MainWindow::p3r_setup() {
     auto actionDns = new QAction(tr("DNS leak protection"), this);
     actionDns->setCheckable(true);
     actionDns->setChecked(NekoGui::dataStore->p3r_dns_protect);
-    actionDns->setToolTip(tr("In \"VPN for all apps\" mode Windows sends DNS queries through every network adapter, so your provider sees which sites you open.\nThis turns on strict routing: Windows Firewall rules keep DNS inside the tunnel."));
+    actionDns->setToolTip(tr("In \"VPN for all apps\" mode Windows sends DNS queries through every network adapter, so your provider sees which sites you open.\nThis turns on strict routing: Windows Firewall rules keep DNS inside the tunnel.\nOn some systems it breaks the internet in VPN mode: if so, turn it off again."));
     connect(actionDns, &QAction::toggled, this, [=](bool checked) {
         NekoGui::dataStore->p3r_dns_protect = checked;
         NekoGui::dataStore->Save();
         if (NekoGui::dataStore->spmode_vpn && NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+        // check right away that the internet still works with strict routing
+        if (checked && NekoGui::dataStore->spmode_vpn) {
+            QTimer::singleShot(8000, this, [=] {
+                runOnNewThread([=] {
+                    bool ok = p3r_test_current(6000);
+                    runOnUiThread([=] {
+                        if (ok || !NekoGui::dataStore->p3r_dns_protect) return;
+                        NekoGui::dataStore->p3r_dns_protect = false;
+                        NekoGui::dataStore->Save();
+                        actionDns->setChecked(false);
+                        MessageBoxWarning("NekoBoxP3R", tr("With DNS leak protection the connection stopped working on this computer, so it was turned off again."));
+                    });
+                });
+            });
+        }
     });
     ui->menu_program->insertAction(first, actionDns);
     ui->menu_program->insertAction(first, actionKill);
@@ -3441,7 +3456,7 @@ void MainWindow::p3r_show_diagnostics() {
                             else if (russian) setRow(row, 2, tr("DNS leak"), tr("DNS goes through Russia: %1").arg(servers.join(", ")),
                                                      NekoGui::dataStore->p3r_dns_protect
                                                          ? tr("Protection is on but the leak is still there: reconnect (press DISCONNECT and CONNECT) so the new rules apply, then check again.")
-                                                         : tr("Windows sends DNS around the tunnel. Turn on Program -> \"DNS leak protection\" and reconnect."));
+                                                         : tr("Windows sends DNS around the tunnel. Try Program -> \"DNS leak protection\" and reconnect (if the internet stops working, turn it off again)."));
                             else setRow(row, 0, tr("DNS leak"), tr("no leak: %1").arg(servers.join(", ")));
                             next();
                         });

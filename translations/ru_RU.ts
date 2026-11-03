@@ -1199,6 +1199,22 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>In "VPN for all apps" mode Windows sends DNS queries through every network adapter, so your provider sees which sites you open.
+This turns on strict routing: Windows Firewall rules keep DNS inside the tunnel.
+On some systems it breaks the internet in VPN mode: if so, turn it off again.</source>
+        <translation>В режиме «VPN для всех программ» Windows отправляет DNS-запросы через все сетевые адаптеры, и провайдер видит, какие сайты ты открываешь.
+Эта настройка включает строгую маршрутизацию: правила брандмауэра Windows держат DNS внутри туннеля.
+На некоторых компьютерах из-за неё в режиме VPN пропадает интернет — тогда выключи её.</translation>
+    </message>
+    <message>
+        <source>With DNS leak protection the connection stopped working on this computer, so it was turned off again.</source>
+        <translation>С защитой от утечки DNS подключение на этом компьютере перестало работать, поэтому она снова выключена.</translation>
+    </message>
+    <message>
+        <source>Windows sends DNS around the tunnel. Try Program -&gt; "DNS leak protection" and reconnect (if the internet stops working, turn it off again).</source>
+        <translation>Windows отправляет DNS мимо туннеля. Попробуй Программа → «Защита от утечки DNS» и переподключись (если пропадёт интернет — выключи её обратно).</translation>
+    </message>
+    <message>
         <source>DNS leak protection</source>
         <translation>Защита от утечки DNS</translation>
     </message>

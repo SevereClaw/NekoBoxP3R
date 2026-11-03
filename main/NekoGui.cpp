@@ -255,7 +255,7 @@ namespace NekoGui {
         _add(new configItem("p3r_ai_via_vpn", &p3r_ai_via_vpn, itemType::boolean));
         _add(new configItem("p3r_failover", &p3r_failover, itemType::boolean));
         _add(new configItem("p3r_killswitch", &p3r_killswitch, itemType::boolean));
-        _add(new configItem("p3r_dns_protect", &p3r_dns_protect, itemType::boolean));
+        _add(new configItem("p3r_dns_protect2", &p3r_dns_protect, itemType::boolean));
         _add(new configItem("p3r_app_mode", &p3r_app_mode, itemType::integer));
         _add(new configItem("p3r_app_list", &p3r_app_list, itemType::stringList));
         _add(new configItem("p3r_notifications", &p3r_notifications, itemType::boolean));
