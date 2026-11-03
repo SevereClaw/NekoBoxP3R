@@ -37,6 +37,13 @@
 #endif
 
 #include <QClipboard>
+#include <QRadioButton>
+#include <QListWidget>
+#include <QFileDialog>
+#include <QDialogButtonBox>
+#include <QLineEdit>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QDateTime>
 #include <QStyle>
 #include <QLabel>
@@ -1766,6 +1773,7 @@ void MainWindow::RegisterHotkey(bool unregister) {
         NekoGui::dataStore->hotkey_group,
         NekoGui::dataStore->hotkey_route,
         NekoGui::dataStore->hotkey_system_proxy_menu,
+        NekoGui::dataStore->p3r_hotkey_connect,
     };
 
     for (const auto &key: regstr) {
@@ -1796,6 +1804,8 @@ void MainWindow::HotkeyEvent(const QString &key) {
             on_menu_routing_settings_triggered();
         } else if (key == NekoGui::dataStore->hotkey_system_proxy_menu) {
             ui->menu_spmode->popup(QCursor::pos());
+        } else if (key == NekoGui::dataStore->p3r_hotkey_connect) {
+            p3r_connect_clicked(); // NekoBoxP3R
         }
     });
 }
@@ -1920,11 +1930,18 @@ void MainWindow::p3r_setup() {
     optionsCol->setSpacing(2);
     optionsCol->addWidget(p3r_auto_best_check);
     optionsCol->addWidget(ruDirect);
+    auto appsButton = new QPushButton(tr("Apps..."), this);
+    appsButton->setObjectName("p3rAppsButton");
+    appsButton->setToolTip(tr("Choose which programs go through the proxy and which go directly"));
+    connect(appsButton, &QPushButton::clicked, this, [=] { p3r_show_apps_dialog(); });
+    optionsCol->addWidget(appsButton);
     auto connectRow = new QHBoxLayout;
     connectRow->addWidget(p3r_connect_button, 1);
     connectRow->addLayout(optionsCol);
     ui->verticalLayout_3->insertLayout(2, connectRow);
     connect(p3r_connect_button, &QPushButton::clicked, this, [=] { p3r_connect_clicked(); });
+    if (!NekoGui::dataStore->p3r_hotkey_connect.isEmpty())
+        p3r_connect_button->setToolTip(tr("Hotkey from any program: %1 (change: Preferences -> Hotkey)").arg(NekoGui::dataStore->p3r_hotkey_connect));
 
     // Clearer hints for the two modes
     ui->checkBox_VPN->setToolTip(tr("All traffic of all programs goes through the proxy (TUN mode). Requires administrator rights."));
@@ -2008,6 +2025,18 @@ void MainWindow::p3r_setup() {
         NekoGui::dataStore->Save();
     });
     ui->menu_program->insertAction(first, actionFailover);
+    auto actionNotify = new QAction(tr("Windows notifications"), this);
+    actionNotify->setCheckable(true);
+    actionNotify->setChecked(NekoGui::dataStore->p3r_notifications);
+    actionNotify->setToolTip(tr("Connect / disconnect (when the window is in the background), server switch, kill switch, updates."));
+    connect(actionNotify, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_notifications = checked;
+        NekoGui::dataStore->Save();
+    });
+    ui->menu_program->insertAction(first, actionNotify);
+    auto actionApps = new QAction(tr("Apps and VPN..."), this);
+    connect(actionApps, &QAction::triggered, this, [=] { p3r_show_apps_dialog(); });
+    ui->menu_program->insertAction(first, actionApps);
 #ifdef Q_OS_WIN
     auto actionKill = new QAction(tr("Kill switch: block the internet if VPN drops"), this);
     actionKill->setCheckable(true);
@@ -2108,6 +2137,15 @@ void MainWindow::p3r_refresh_connect_button() {
     if (p3r_last_connected != -1 && p3r_last_connected != int(connected)) {
         P3R::PlayFx(connected ? P3R::Sound::Connect : P3R::Sound::Disconnect);
         p3r_connect_button->sweep();
+        // notification only when the window is not in front (no need to tell what you see)
+        if (!isActiveWindow()) {
+            if (connected) {
+                QString mode = NekoGui::dataStore->spmode_vpn ? tr("VPN for all apps") : (NekoGui::dataStore->spmode_system_proxy ? tr("Browser and proxy-aware apps") : tr("local port only"));
+                p3r_notify(tr("Connected"), running->bean->DisplayName() + "\n" + mode);
+            } else {
+                p3r_notify(tr("Disconnected"), tr("Traffic goes without the proxy now."));
+            }
+        }
     }
     p3r_last_connected = int(connected);
 }
@@ -2244,6 +2282,7 @@ void MainWindow::p3r_apply_clear_names() {
 
 void MainWindow::p3r_notify(const QString &title, const QString &text) {
     MW_show_log("[NekoBoxP3R] " + title + ": " + QString(text).replace('\n', ' '));
+    if (!NekoGui::dataStore->p3r_notifications) return;
     if (tray != nullptr && tray->isVisible()) tray->showMessage(title, text, QSystemTrayIcon::Information, 7000);
 }
 
@@ -2310,4 +2349,114 @@ void MainWindow::p3r_killswitch_release(bool notify) {
     } else {
         p3r_notify(tr("Could not unblock the internet"), tr("Start the program as administrator and use Program -> Unblock the internet."));
     }
+}
+
+// ======================== NekoBoxP3R: apps and VPN ========================
+
+bool MainWindow::p3r_pick_running_apps(QStringList &out) {
+    QDialog d(this);
+    d.setWindowTitle(tr("Running programs"));
+    d.resize(420, 520);
+    auto layout = new QVBoxLayout(&d);
+    auto filter = new QLineEdit(&d);
+    filter->setPlaceholderText(tr("Search, e.g. discord"));
+    filter->setClearButtonEnabled(true);
+    auto list = new QListWidget(&d);
+    list->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    for (const auto &name: P3R::RunningProcessNames()) list->addItem(name);
+    connect(filter, &QLineEdit::textChanged, &d, [=](const QString &text) {
+        for (int i = 0; i < list->count(); i++) list->item(i)->setHidden(!list->item(i)->text().contains(text, Qt::CaseInsensitive));
+    });
+    auto hint = new QLabel(tr("Select one or several programs (Ctrl+click)."), &d);
+    auto box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    connect(box, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    connect(list, &QListWidget::itemDoubleClicked, &d, &QDialog::accept);
+    layout->addWidget(filter);
+    layout->addWidget(list, 1);
+    layout->addWidget(hint);
+    layout->addWidget(box);
+    filter->setFocus();
+    if (d.exec() != QDialog::Accepted) return false;
+    for (auto item: list->selectedItems()) out << item->text();
+    return !out.isEmpty();
+}
+
+void MainWindow::p3r_show_apps_dialog() {
+    QDialog d(this);
+    d.setWindowTitle(tr("Apps and VPN"));
+    d.resize(560, 560);
+    auto layout = new QVBoxLayout(&d);
+
+    auto modeOff = new QRadioButton(tr("Off: all programs follow the common rules"), &d);
+    auto modeDirect = new QRadioButton(tr("These programs go DIRECTLY, without the proxy (e.g. games)"), &d);
+    auto modeOnly = new QRadioButton(tr("ONLY these programs go through the proxy, all others directly (e.g. only Discord)"), &d);
+    QList<QRadioButton *> modes{modeOff, modeDirect, modeOnly};
+    modes.value(NekoGui::dataStore->p3r_app_mode, modeOff)->setChecked(true);
+    for (auto m: modes) layout->addWidget(m);
+
+    auto list = new QListWidget(&d);
+    list->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    list->addItems(NekoGui::dataStore->p3r_app_list);
+    layout->addWidget(list, 1);
+
+    auto addUnique = [=](const QStringList &names) {
+        for (const auto &n: names) {
+            if (n.trimmed().isEmpty()) continue;
+            if (list->findItems(n, Qt::MatchFixedString).isEmpty()) list->addItem(n);
+        }
+    };
+
+    auto buttons = new QHBoxLayout;
+    auto btnRunning = new QPushButton(tr("Add from running..."), &d);
+    auto btnFile = new QPushButton(tr("Add exe file..."), &d);
+    auto btnName = new QPushButton(tr("Add by name..."), &d);
+    auto btnRemove = new QPushButton(tr("Remove"), &d);
+    buttons->addWidget(btnRunning);
+    buttons->addWidget(btnFile);
+    buttons->addWidget(btnName);
+    buttons->addStretch();
+    buttons->addWidget(btnRemove);
+    layout->addLayout(buttons);
+
+    connect(btnRunning, &QPushButton::clicked, &d, [=] {
+        QStringList picked;
+        if (p3r_pick_running_apps(picked)) addUnique(picked);
+    });
+    connect(btnFile, &QPushButton::clicked, &d, [=, &d] {
+        auto files = QFileDialog::getOpenFileNames(&d, tr("Choose programs"), "C:/", "Programs (*.exe)");
+        QStringList names;
+        for (const auto &f: files) names << QFileInfo(f).fileName();
+        addUnique(names);
+    });
+    connect(btnName, &QPushButton::clicked, &d, [=, &d] {
+        bool ok;
+        auto name = QInputDialog::getText(&d, tr("Add by name"), tr("Program file name, e.g. Discord.exe"), QLineEdit::Normal, "", &ok).trimmed();
+        if (!ok || name.isEmpty()) return;
+        if (!name.endsWith(".exe", Qt::CaseInsensitive)) name += ".exe";
+        addUnique({name});
+    });
+    connect(btnRemove, &QPushButton::clicked, &d, [=] { qDeleteAll(list->selectedItems()); });
+
+    auto note = new QLabel(tr("Works best in \"VPN for all apps\" mode: then the rule applies to every program. In \"Browser and proxy-aware apps\" mode only programs that use the proxy are affected.\nChanges apply right away (the connection restarts)."), &d);
+    note->setWordWrap(true);
+    note->setStyleSheet("color:#9FC3E6;");
+    layout->addWidget(note);
+
+    auto box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    connect(box, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    layout->addWidget(box);
+
+    if (d.exec() != QDialog::Accepted) return;
+
+    QStringList apps;
+    for (int i = 0; i < list->count(); i++) apps << list->item(i)->text();
+    int mode = modeDirect->isChecked() ? 1 : (modeOnly->isChecked() ? 2 : 0);
+    if (mode != 0 && apps.isEmpty()) mode = 0;
+    bool changed = mode != NekoGui::dataStore->p3r_app_mode || apps != NekoGui::dataStore->p3r_app_list;
+    NekoGui::dataStore->p3r_app_mode = mode;
+    NekoGui::dataStore->p3r_app_list = apps;
+    NekoGui::dataStore->Save();
+    if (changed && NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
 }

@@ -534,6 +534,7 @@ void MainWindow::CheckUpdate(bool silent) {
     }
 
     runOnUiThread([=] {
+        if (silent) p3r_notify(QObject::tr("Update available"), QString::fromStdString(response.assets_name()));
         if (p3r_update_dialog_open) return;
         p3r_update_dialog_open = true;
         auto allow_updater = !NekoGui::dataStore->flag_use_appdata;

@@ -702,6 +702,14 @@ namespace NekoGui {
             status->routingRules += rule;
         };
 
+        // NekoBoxP3R: per-app rules have the highest priority
+        if (!status->forTest && dataStore->p3r_app_mode != 0 && !dataStore->p3r_app_list.isEmpty()) {
+            status->routingRules += QJsonObject{
+                {"process_name", QList2QJsonArray(dataStore->p3r_app_list)},
+                {"outbound", dataStore->p3r_app_mode == 1 ? QString("bypass") : tagProxy},
+            };
+        }
+
         // final add user rule
         add_rule_route(status->domainListBlock, false, "block");
         add_rule_route(status->domainListRemote, false, tagProxy);
@@ -780,6 +788,8 @@ namespace NekoGui {
                 },
             }};
         if (!status->forTest) routeObj["final"] = dataStore->routing->def_outbound;
+        // NekoBoxP3R: "only these apps via proxy" -> everything else goes direct
+        if (!status->forTest && dataStore->p3r_app_mode == 2 && !dataStore->p3r_app_list.isEmpty()) routeObj["final"] = "bypass";
         if (status->forExport) {
             routeObj.remove("geoip");
             routeObj.remove("geosite");

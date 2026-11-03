@@ -492,6 +492,10 @@
 <context>
     <name>DialogHotkey</name>
     <message>
+        <source>Connect / disconnect</source>
+        <translation>Подключить / отключить</translation>
+    </message>
+    <message>
         <source>Hotkey</source>
         <translation>Горячие клавиши</translation>
     </message>
@@ -1112,6 +1116,108 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>local port only</source>
+        <translation>только локальный порт</translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation>Подключено</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>Отключено</translation>
+    </message>
+    <message>
+        <source>Traffic goes without the proxy now.</source>
+        <translation>Теперь трафик идёт без прокси.</translation>
+    </message>
+    <message>
+        <source>Hotkey from any program: %1 (change: Preferences -&gt; Hotkey)</source>
+        <translation>Горячая клавиша из любой программы: %1 (изменить: Настройки → Горячие клавиши)</translation>
+    </message>
+    <message>
+        <source>Windows notifications</source>
+        <translation>Уведомления Windows</translation>
+    </message>
+    <message>
+        <source>Connect / disconnect (when the window is in the background), server switch, kill switch, updates.</source>
+        <translation>Подключение/отключение (когда окно в фоне), смена сервера, kill switch, обновления.</translation>
+    </message>
+    <message>
+        <source>Apps and VPN...</source>
+        <translation>Программы и VPN...</translation>
+    </message>
+    <message>
+        <source>Apps...</source>
+        <translation>Программы...</translation>
+    </message>
+    <message>
+        <source>Choose which programs go through the proxy and which go directly</source>
+        <translation>Выбрать, какие программы идут через прокси, а какие напрямую</translation>
+    </message>
+    <message>
+        <source>Running programs</source>
+        <translation>Запущенные программы</translation>
+    </message>
+    <message>
+        <source>Search, e.g. discord</source>
+        <translation>Поиск, например discord</translation>
+    </message>
+    <message>
+        <source>Select one or several programs (Ctrl+click).</source>
+        <translation>Выбери одну или несколько программ (Ctrl+клик).</translation>
+    </message>
+    <message>
+        <source>Apps and VPN</source>
+        <translation>Программы и VPN</translation>
+    </message>
+    <message>
+        <source>Off: all programs follow the common rules</source>
+        <translation>Выключено: все программы по общим правилам</translation>
+    </message>
+    <message>
+        <source>These programs go DIRECTLY, without the proxy (e.g. games)</source>
+        <translation>Эти программы идут НАПРЯМУЮ, без прокси (например, игры)</translation>
+    </message>
+    <message>
+        <source>ONLY these programs go through the proxy, all others directly (e.g. only Discord)</source>
+        <translation>ТОЛЬКО эти программы идут через прокси, все остальные напрямую (например, только Discord)</translation>
+    </message>
+    <message>
+        <source>Add from running...</source>
+        <translation>Добавить из запущенных...</translation>
+    </message>
+    <message>
+        <source>Add exe file...</source>
+        <translation>Добавить exe-файл...</translation>
+    </message>
+    <message>
+        <source>Add by name...</source>
+        <translation>Добавить по имени...</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <source>Choose programs</source>
+        <translation>Выбери программы</translation>
+    </message>
+    <message>
+        <source>Add by name</source>
+        <translation>Добавить по имени</translation>
+    </message>
+    <message>
+        <source>Program file name, e.g. Discord.exe</source>
+        <translation>Имя файла программы, например Discord.exe</translation>
+    </message>
+    <message>
+        <source>Works best in "VPN for all apps" mode: then the rule applies to every program. In "Browser and proxy-aware apps" mode only programs that use the proxy are affected.
+Changes apply right away (the connection restarts).</source>
+        <translation>Лучше всего работает в режиме «VPN для всех программ»: тогда правило действует на любую программу. В режиме «Браузер и программы с прокси» затрагиваются только программы, которые используют прокси.
+Изменения применяются сразу (подключение перезапускается).</translation>
+    </message>
     <message>
         <source>No server responds</source>
         <translation>Ни один сервер не отвечает</translation>
@@ -1878,6 +1984,10 @@ End: %2</source>
 </context>
 <context>
     <name>QObject</name>
+    <message>
+        <source>Update available</source>
+        <translation>Доступно обновление</translation>
+    </message>
     <message>
         <source>NekoBoxP3R is already running with administrator rights. Open it from the tray icon.</source>
         <translation>NekoBoxP3R уже запущен с правами администратора. Открой его через значок в трее.</translation>

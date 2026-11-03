@@ -116,6 +116,10 @@ namespace NekoGui {
         bool p3r_ru_direct = true;      // NekoBoxP3R: Russian sites bypass the proxy
         bool p3r_failover = true;       // NekoBoxP3R: switch to the fastest server when the current one dies
         bool p3r_killswitch = false;    // NekoBoxP3R: block internet if VPN drops unexpectedly
+        int p3r_app_mode = 0;           // NekoBoxP3R: 0 off, 1 listed apps direct, 2 only listed apps via proxy
+        QStringList p3r_app_list = {};  // NekoBoxP3R: exe names, e.g. "Discord.exe"
+        bool p3r_notifications = true;  // NekoBoxP3R: Windows notifications
+        QString p3r_hotkey_connect = "Ctrl+Alt+P"; // NekoBoxP3R: connect / disconnect
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

@@ -127,3 +127,4 @@ QTableWidget#proxyListTable{font-size:11pt;color:#FFFFFF;background:#081530;alte
 QTableWidget#proxyListTable::item{padding:2px 8px;}
 QTableWidget#proxyListTable QHeaderView::section{font-size:10pt;}
 QCheckBox#p3rAutoBest,QCheckBox#p3rRuDirect{font-weight:800;font-style:italic;color:#2EE6FF;padding:0px 6px;}
+QPushButton#p3rAppsButton{padding:2px 10px;min-height:14px;font-size:9pt;}

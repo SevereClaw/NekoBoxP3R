@@ -19,4 +19,5 @@ public:
 
 private:
     Ui::DialogHotkey *ui;
+    class QtExtKeySequenceEdit *p3r_connect_edit = nullptr; // NekoBoxP3R
 };

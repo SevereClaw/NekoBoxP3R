@@ -10,6 +10,7 @@
 // WinCommander first: windows.h defines SW_HIDE etc. as macros
 #include "3rdparty/WinCommander.hpp"
 #include <windows.h>
+#include <tlhelp32.h>
 #endif
 
 namespace P3R {
@@ -155,6 +156,25 @@ namespace P3R {
         QFile::remove(kKsMarker);
         return true;
 #endif
+    }
+
+    QStringList RunningProcessNames() {
+        QStringList names;
+#ifdef Q_OS_WIN
+        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snap == INVALID_HANDLE_VALUE) return names;
+        PROCESSENTRY32W entry;
+        entry.dwSize = sizeof(entry);
+        if (Process32FirstW(snap, &entry)) {
+            do {
+                auto name = QString::fromWCharArray(entry.szExeFile);
+                if (name.endsWith(".exe", Qt::CaseInsensitive) && !names.contains(name, Qt::CaseInsensitive)) names << name;
+            } while (Process32NextW(snap, &entry));
+        }
+        CloseHandle(snap);
+#endif
+        names.sort(Qt::CaseInsensitive);
+        return names;
     }
 
 } // namespace P3R

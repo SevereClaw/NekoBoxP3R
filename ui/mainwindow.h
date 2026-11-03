@@ -179,6 +179,8 @@ private:
     // kill switch
     void p3r_killswitch_on_crash();
     void p3r_killswitch_release(bool notify);
+    void p3r_show_apps_dialog();
+    bool p3r_pick_running_apps(QStringList &out);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;
     bool p3r_update_dialog_open = false;

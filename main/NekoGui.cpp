@@ -254,6 +254,10 @@ namespace NekoGui {
         _add(new configItem("p3r_ru_direct", &p3r_ru_direct, itemType::boolean));
         _add(new configItem("p3r_failover", &p3r_failover, itemType::boolean));
         _add(new configItem("p3r_killswitch", &p3r_killswitch, itemType::boolean));
+        _add(new configItem("p3r_app_mode", &p3r_app_mode, itemType::integer));
+        _add(new configItem("p3r_app_list", &p3r_app_list, itemType::stringList));
+        _add(new configItem("p3r_notifications", &p3r_notifications, itemType::boolean));
+        _add(new configItem("p3r_hotkey_connect", &p3r_hotkey_connect, itemType::string));
         _add(new configItem("last_started_id", &last_started_id, itemType::integer));
         _add(new configItem("custom_inbound", &custom_inbound, itemType::string));
         _add(new configItem("custom_route", &custom_route_global, itemType::string));

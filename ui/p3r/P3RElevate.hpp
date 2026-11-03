@@ -24,4 +24,7 @@ namespace P3R {
     bool KillSwitchUnblock();
     // True while the block is in place (marker file in the config dir).
     bool KillSwitchActive();
+
+    // Names of running programs (e.g. "Discord.exe"), sorted, without duplicates.
+    QStringList RunningProcessNames();
 } // namespace P3R
