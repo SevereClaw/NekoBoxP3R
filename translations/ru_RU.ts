@@ -1074,6 +1074,30 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>All traffic of all programs goes through the proxy (TUN mode). Requires administrator rights.</source>
+        <translation>Весь трафик всех программ идёт через прокси (режим TUN). Нужны права администратора.</translation>
+    </message>
+    <message>
+        <source>Browsers and programs that use the Windows proxy settings go through the proxy.</source>
+        <translation>Через прокси идут браузеры и программы, которые используют настройки прокси Windows.</translation>
+    </message>
+    <message>
+        <source>Simple mode</source>
+        <translation>Упрощённый режим</translation>
+    </message>
+    <message>
+        <source>No servers yet. Copy a server link and use Server -&gt; Add profile from clipboard.</source>
+        <translation>Серверов пока нет. Скопируй ссылку на сервер и выбери Сервер → Добавить профиль из буфера обмена.</translation>
+    </message>
+    <message>
+        <source>DISCONNECT</source>
+        <translation>ОТКЛЮЧИТЬСЯ</translation>
+    </message>
+    <message>
+        <source>CONNECT</source>
+        <translation>ПОДКЛЮЧИТЬСЯ</translation>
+    </message>
+    <message>
         <source>Program</source>
         <translation>Программа</translation>
     </message>

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QPushButton>
+#include <QAction>
 
 #include "main/NekoGui.hpp"
 
@@ -155,6 +157,13 @@ private:
     //
     int proxy_last_order = -1;
     bool select_mode = false;
+    // NekoBoxP3R
+    QPushButton *p3r_connect_button = nullptr;
+    QAction *p3r_simple_mode_action = nullptr;
+    void p3r_setup();
+    void p3r_connect_clicked();
+    void p3r_refresh_connect_button();
+    void p3r_apply_simple_mode();
     QMutex mu_starting;
     QMutex mu_stopping;
     QMutex mu_exit;

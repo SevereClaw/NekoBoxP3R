@@ -245,6 +245,8 @@ namespace NekoGui {
         _add(new configItem("traffic_loop_interval", &traffic_loop_interval, itemType::integer));
         _add(new configItem("test_concurrent", &test_concurrent, itemType::integer));
         _add(new configItem("theme", &theme, itemType::string));
+        _add(new configItem("simple_mode", &simple_mode, itemType::boolean));
+        _add(new configItem("last_started_id", &last_started_id, itemType::integer));
         _add(new configItem("custom_inbound", &custom_inbound, itemType::string));
         _add(new configItem("custom_route", &custom_route_global, itemType::string));
         _add(new configItem("sub_use_proxy", &sub_use_proxy, itemType::boolean));
@@ -287,6 +289,10 @@ namespace NekoGui {
 
     void DataStore::UpdateStartedId(int id) {
         started_id = id;
+        if (id >= 0 && last_started_id != id) {
+            last_started_id = id;
+            if (!remember_enable) Save();
+        }
         if (remember_enable) {
             remember_id = id;
             Save();

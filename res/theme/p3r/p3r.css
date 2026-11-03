@@ -119,3 +119,15 @@ QProgressBar::chunk{background:#2EE6FF;}
 QDialogButtonBox QPushButton{min-width:80px;}
 QMessageBox{background:#0A1A33;}
 QMessageBox QLabel{color:#EAF6FF;}
+
+/* ---- big CONNECT button (NekoBoxP3R) ---- */
+QPushButton#p3rConnectButton{
+color:#061026;background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #FFFFFF,stop:0.6 #EAF6FF,stop:1 #2EE6FF);
+border:none;border-left:8px solid #2EE6FF;padding:8px 20px;margin:4px 2px;
+font-size:16pt;font-weight:900;font-style:italic;text-align:left;}
+QPushButton#p3rConnectButton:hover{border-left-color:#FF2B3B;background:#FFFFFF;}
+QPushButton#p3rConnectButton:pressed{background:#2EE6FF;}
+QPushButton#p3rConnectButton[connected="true"]{
+color:#FFFFFF;background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #FF2B3B,stop:1 #8A0F1C);
+border-left:8px solid #FFFFFF;font-size:13pt;}
+QPushButton#p3rConnectButton[connected="true"]:hover{background:#FF2B3B;}

@@ -36,6 +36,7 @@
 #endif
 
 #include <QClipboard>
+#include <QStyle>
 #include <QLabel>
 #include <QTextBlock>
 #include <QScrollBar>
@@ -104,6 +105,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(ui->toolButton_ads, &QToolButton::clicked, this, [=] { QDesktopServices::openUrl(QUrl("https://neko-box.pages.dev/喵")); });
     connect(ui->toolButton_update, &QToolButton::clicked, this, [=] { runOnNewThread([=] { CheckUpdate(); }); });
     connect(ui->toolButton_url_test, &QToolButton::clicked, this, [=] { speedtest_current_group(1, true); });
+    p3r_setup();
 
     // Setup log UI
     ui->splitter->restoreState(DecodeB64IfValid(NekoGui::dataStore->splitter_state));
@@ -802,6 +804,7 @@ void MainWindow::neko_set_spmode_vpn(bool enable, bool save) {
 }
 
 void MainWindow::refresh_status(const QString &traffic_update) {
+    p3r_refresh_connect_button();
     auto refresh_speed_label = [=] {
         if (traffic_update_cache == "") {
             ui->label_speed->setText(QObject::tr("Proxy: %1\nDirect: %2").arg("", ""));
@@ -1841,4 +1844,90 @@ bool MainWindow::StopVPNProcess(bool unconditional) {
         return ok;
     }
     return true;
+}
+
+// ======================== NekoBoxP3R: connect button & simple mode ========================
+
+void MainWindow::p3r_setup() {
+    // Big connect button between the top bar and the server list
+    p3r_connect_button = new QPushButton(this);
+    p3r_connect_button->setObjectName("p3rConnectButton");
+    p3r_connect_button->setMinimumHeight(56);
+    p3r_connect_button->setCursor(Qt::PointingHandCursor);
+    p3r_connect_button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    ui->verticalLayout_3->insertWidget(1, p3r_connect_button);
+    connect(p3r_connect_button, &QPushButton::clicked, this, [=] { p3r_connect_clicked(); });
+
+    // Clearer hints for the two modes
+    ui->checkBox_VPN->setToolTip(tr("All traffic of all programs goes through the proxy (TUN mode). Requires administrator rights."));
+    ui->checkBox_SystemProxy->setToolTip(tr("Browsers and programs that use the Windows proxy settings go through the proxy."));
+
+    // Simple mode switch: first item of the "Program" menu
+    p3r_simple_mode_action = new QAction(tr("Simple mode"), this);
+    p3r_simple_mode_action->setCheckable(true);
+    p3r_simple_mode_action->setChecked(NekoGui::dataStore->simple_mode);
+    auto first = ui->menu_program->actions().value(0);
+    ui->menu_program->insertAction(first, p3r_simple_mode_action);
+    ui->menu_program->insertSeparator(first);
+    connect(p3r_simple_mode_action, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->simple_mode = checked;
+        NekoGui::dataStore->Save();
+        p3r_apply_simple_mode();
+    });
+
+    p3r_apply_simple_mode();
+    p3r_refresh_connect_button();
+}
+
+void MainWindow::p3r_connect_clicked() {
+    if (running != nullptr) {
+        neko_stop();
+        return;
+    }
+    // 1. selected server, 2. last used server, 3. first server in the list
+    int id = -1;
+    auto ents = get_now_selected_list();
+    if (!ents.isEmpty()) {
+        id = ents.first()->id;
+    } else if (NekoGui::profileManager->GetProfile(NekoGui::dataStore->last_started_id) != nullptr) {
+        id = NekoGui::dataStore->last_started_id;
+    } else if (ui->proxyListTable->rowCount() > 0) {
+        id = ui->proxyListTable->row2Id.value(0, -1);
+    }
+    if (id < 0 || NekoGui::profileManager->GetProfile(id) == nullptr) {
+        MessageBoxInfo(software_name, tr("No servers yet. Copy a server link and use Server -> Add profile from clipboard."));
+        return;
+    }
+    neko_start(id);
+}
+
+void MainWindow::p3r_refresh_connect_button() {
+    if (p3r_connect_button == nullptr) return;
+    bool connected = running != nullptr;
+    QString text;
+    if (connected) {
+        text = QString::fromUtf8("\u25A0  ") + tr("DISCONNECT") + "\n" + running->bean->DisplayName().left(40);
+    } else {
+        text = QString::fromUtf8("\u25B6  ") + tr("CONNECT");
+    }
+    if (p3r_connect_button->text() != text) p3r_connect_button->setText(text);
+    if (p3r_connect_button->property("connected").toBool() != connected) {
+        p3r_connect_button->setProperty("connected", connected);
+        p3r_connect_button->style()->unpolish(p3r_connect_button);
+        p3r_connect_button->style()->polish(p3r_connect_button);
+    }
+}
+
+void MainWindow::p3r_apply_simple_mode() {
+    bool simple = NekoGui::dataStore->simple_mode;
+    ui->aaaaaaaaaaaaaaaaaa->setVisible(!simple); // log / connections panel
+    ui->toolButton_ads->setVisible(!simple);
+    ui->toolButton_document->setVisible(!simple);
+    ui->toolButton_update->setVisible(!simple);
+    ui->label_inbound->setVisible(!simple);
+    ui->proxyListTable->setColumnHidden(0, simple); // Type
+    ui->proxyListTable->setColumnHidden(4, simple); // Traffic
+    if (p3r_simple_mode_action != nullptr && p3r_simple_mode_action->isChecked() != simple) {
+        p3r_simple_mode_action->setChecked(simple);
+    }
 }

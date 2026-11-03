@@ -107,6 +107,8 @@ namespace NekoGui {
         int mux_concurrency = 8;
         bool mux_default_on = false;
         QString theme = "4"; // Persona 3
+        bool simple_mode = true;  // NekoBoxP3R
+        int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";
         bool check_include_pre = false;
