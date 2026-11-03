@@ -37,6 +37,14 @@
 #endif
 
 #include <QClipboard>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkProxy>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QHostAddress>
+#include <QRegularExpression>
+#include <QMenu>
 #include <QPropertyAnimation>
 #include <QPalette>
 #include <QUrl>
@@ -1129,6 +1137,15 @@ void MainWindow::refresh_proxy_list_impl_refresh_data(const int &id) {
             f->setData(P3R::GreenRole, NekoGui::dataStore->test_latency_url.startsWith("https://") ? 200 : 100);
         } else {
             f->setText(profile->full_test_report);
+            // NekoBoxP3R: "Speed: 12.34MiB/s" -> Mbit/s pill
+            static const QRegularExpression speedRe("Speed: ([0-9.]+)MiB/s");
+            auto m = speedRe.match(profile->full_test_report);
+            if (m.hasMatch()) {
+                f->setData(P3R::SpeedRole, m.captured(1).toDouble() * 8.388608);
+            } else if (profile->full_test_report.contains("Speed: Timeout") || profile->full_test_report.contains("Speed: Error")) {
+                f->setData(P3R::SpeedRole, -1.0);
+            }
+            f->setToolTip(profile->full_test_report);
         }
         ui->proxyListTable->setItem(row, 3, f);
 
@@ -1763,6 +1780,7 @@ void MainWindow::refresh_connection_list(const QJsonArray &arr) {
             target2 = "";
         }
         f->setText("[" + target1 + "] " + target2);
+        f->setData(Qt::UserRole + 0x60, target2.isEmpty() ? target1 : target2); // NekoBoxP3R: host for site rules
         ui->tableWidget_conn->setItem(row, 2, f);
     }
 }
@@ -1918,6 +1936,7 @@ void MainWindow::p3r_setup() {
 
     auto banner = new P3R::Banner("NekoBoxP3R", "v" + QString(P3R_VERSION), this);
     p3r_banner = banner;
+    connect(banner, &P3R::Banner::clicked, this, [=] { p3r_check_ip(); });
     ui->verticalLayout_3->insertWidget(0, banner);
 
     p3r_connect_button = new P3R::ConnectButton(this);
@@ -1946,10 +1965,12 @@ void MainWindow::p3r_setup() {
     optionsCol->addWidget(p3r_auto_best_check);
     optionsCol->addWidget(ruDirect);
     auto appsButton = new QPushButton(tr("Apps..."), this);
+    p3r_apps_button = appsButton;
     appsButton->setObjectName("p3rAppsButton");
     appsButton->setToolTip(tr("Choose which programs go through the proxy and which go directly"));
     connect(appsButton, &QPushButton::clicked, this, [=] { p3r_show_apps_dialog(); });
     optionsCol->addWidget(appsButton);
+    p3r_refresh_apps_button();
     auto connectRow = new QHBoxLayout;
     connectRow->addWidget(p3r_connect_button, 1);
     connectRow->addLayout(optionsCol);
@@ -2139,6 +2160,35 @@ void MainWindow::p3r_setup() {
         p3r_toggle_favorite(ids);
     });
     ui->menu_server->insertAction(ui->menu_server->actions().value(1), actionFav);
+    auto actionSpeed = new QAction(tr("Check download speed (Mbit/s)"), this);
+    actionSpeed->setToolTip(tr("Downloads a test file through the selected servers and shows the real speed"));
+    connect(actionSpeed, &QAction::triggered, this, [=] { p3r_speed_test_selected(); });
+    ui->menu_server->insertAction(ui->menu_server->actions().value(2), actionSpeed);
+
+    auto actionIp = new QAction(tr("Check my IP"), this);
+    connect(actionIp, &QAction::triggered, this, [=] { p3r_check_ip(); });
+    auto actionSites = new QAction(tr("Sites: directly or via VPN..."), this);
+    connect(actionSites, &QAction::triggered, this, [=] { p3r_show_sites_dialog(); });
+    ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionSites);
+    ui->menu_program->insertAction(ui->menu_program->actions().value(0), actionIp);
+
+    // right click on a connection: this site directly / via VPN
+    ui->tableWidget_conn->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->tableWidget_conn, &QWidget::customContextMenuRequested, this, [=](const QPoint &pos) {
+        auto item = ui->tableWidget_conn->itemAt(pos);
+        if (item == nullptr) return;
+        auto cell = ui->tableWidget_conn->item(item->row(), 2);
+        if (cell == nullptr) return;
+        auto host = cell->data(Qt::UserRole + 0x60).toString();
+        if (host.isEmpty()) return;
+        QMenu menu(this);
+        menu.addAction(tr("This site always DIRECTLY"), this, [=] { p3r_add_site_rule(host, true); });
+        menu.addAction(tr("This site always via VPN"), this, [=] { p3r_add_site_rule(host, false); });
+        menu.addSeparator();
+        menu.addAction(tr("Sites: directly or via VPN..."), this, [=] { p3r_show_sites_dialog(); });
+        menu.exec(ui->tableWidget_conn->viewport()->mapToGlobal(pos));
+    });
+    QTimer::singleShot(4000, this, [=] { p3r_check_ip(); });
 
     // paste link / subscription: button in the top bar + empty-list screen
     auto pasteButton = new QPushButton(QString::fromUtf8("\uFF0B ") + tr("Paste link"), this);
@@ -2209,6 +2259,7 @@ void MainWindow::p3r_refresh_connect_button() {
     p3r_connect_button->setConnected(connected);
     if (connected && P3R::KillSwitchActive()) p3r_killswitch_release(true);
     if (p3r_last_connected != -1 && p3r_last_connected != int(connected)) {
+        QTimer::singleShot(connected ? 2500 : 800, this, [=] { p3r_check_ip(); });
         P3R::PlayFx(connected ? P3R::Sound::Connect : P3R::Sound::Disconnect);
         p3r_connect_button->sweep();
         // notification only when the window is not in front (no need to tell what you see)
@@ -2464,7 +2515,7 @@ void MainWindow::p3r_show_apps_dialog() {
 
     auto modeOff = new QRadioButton(tr("Off: all programs follow the common rules"), &d);
     auto modeDirect = new QRadioButton(tr("These programs go DIRECTLY, without the proxy (e.g. games)"), &d);
-    auto modeOnly = new QRadioButton(tr("ONLY these programs go through the proxy, all others directly (e.g. only Discord)"), &d);
+    auto modeOnly = new QRadioButton(tr("ONLY these programs go through the proxy, all others directly (e.g. only Discord). Needs \"VPN for all apps\"."), &d);
     QList<QRadioButton *> modes{modeOff, modeDirect, modeOnly};
     modes.value(NekoGui::dataStore->p3r_app_mode, modeOff)->setChecked(true);
     for (auto m: modes) layout->addWidget(m);
@@ -2532,7 +2583,31 @@ void MainWindow::p3r_show_apps_dialog() {
     NekoGui::dataStore->p3r_app_mode = mode;
     NekoGui::dataStore->p3r_app_list = apps;
     NekoGui::dataStore->Save();
+    p3r_refresh_apps_button();
     if (changed && NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+
+    // per-app rules can only catch programs when traffic is intercepted (TUN)
+    if (mode != 0 && !NekoGui::dataStore->spmode_vpn) {
+        QString text = mode == 2
+                           ? tr("To send ONLY the chosen programs through the proxy, the program has to see the traffic of all programs, so \"VPN for all apps\" must be on.\nThe other programs will still go directly, because of this rule.\n\nTurn it on now?")
+                           : tr("For the chosen programs to go directly, \"VPN for all apps\" must be on (otherwise most programs do not use the proxy anyway).\n\nTurn it on now?");
+        if (QMessageBox::question(this, "NekoBoxP3R", text) == QMessageBox::Yes) neko_set_spmode_vpn(true);
+    }
+}
+
+void MainWindow::p3r_refresh_apps_button() {
+    if (p3r_apps_button == nullptr) return;
+    int n = NekoGui::dataStore->p3r_app_list.size();
+    switch (NekoGui::dataStore->p3r_app_mode) {
+        case 1:
+            p3r_apps_button->setText(tr("Apps: %1 directly").arg(n));
+            break;
+        case 2:
+            p3r_apps_button->setText(tr("Apps: only %1 via VPN").arg(n));
+            break;
+        default:
+            p3r_apps_button->setText(tr("Apps..."));
+    }
 }
 
 // ======================== NekoBoxP3R: favorites, traffic graph, paste ========================
@@ -2635,4 +2710,218 @@ void MainWindow::p3r_show_main_window() {
         fade->start(QAbstractAnimation::DeleteWhenStopped);
     });
     splash->start();
+}
+
+// ======================== NekoBoxP3R: my IP, speed test, site rules ========================
+
+void MainWindow::p3r_check_ip() {
+    if (p3r_banner == nullptr) return;
+    if (p3r_nam == nullptr) p3r_nam = new QNetworkAccessManager(this);
+    bool viaProxy = running != nullptr && NekoGui::dataStore->core_running;
+    QNetworkProxy proxy(QNetworkProxy::NoProxy);
+    if (viaProxy) {
+        proxy = QNetworkProxy(QNetworkProxy::Socks5Proxy, "127.0.0.1", NekoGui::dataStore->inbound_socks_port);
+        if (NekoGui::dataStore->inbound_auth->NeedAuth()) {
+            proxy.setUser(NekoGui::dataStore->inbound_auth->username);
+            proxy.setPassword(NekoGui::dataStore->inbound_auth->password);
+        }
+    }
+    p3r_nam->setProxy(proxy);
+    p3r_banner->setIpInfo(0, {}, {}, {});
+    int requestId = ++p3r_ip_request;
+
+    auto ask = [=](const QString &url, std::function<void(const QJsonObject &)> onJson, std::function<void()> onFail) {
+        QNetworkRequest req{QUrl(url)};
+        req.setTransferTimeout(8000);
+        req.setHeader(QNetworkRequest::UserAgentHeader, "NekoBoxP3R");
+        auto reply = p3r_nam->get(req);
+        connect(reply, &QNetworkReply::finished, this, [=] {
+            reply->deleteLater();
+            if (requestId != p3r_ip_request) return; // a newer check is running
+            auto json = QJsonDocument::fromJson(reply->readAll()).object();
+            if (reply->error() == QNetworkReply::NoError && !json.isEmpty()) {
+                onJson(json);
+            } else {
+                onFail();
+            }
+        });
+    };
+    int state = viaProxy ? 1 : 2;
+    ask("https://ipinfo.io/json", [=](const QJsonObject &j) {
+            p3r_banner->setIpInfo(state, j["ip"].toString(), j["country"].toString(), j["city"].toString());
+        },
+        [=] {
+            // fallback service
+            ask("http://ip-api.com/json/?fields=status,query,countryCode,city", [=](const QJsonObject &j) {
+                    if (j["status"].toString() != "success") {
+                        p3r_banner->setIpInfo(3, {}, {}, {});
+                        return;
+                    }
+                    p3r_banner->setIpInfo(state, j["query"].toString(), j["countryCode"].toString(), j["city"].toString());
+                },
+                [=] { p3r_banner->setIpInfo(3, {}, {}, {}); });
+        });
+}
+
+void MainWindow::p3r_speed_test_selected() {
+    if (p3r_speedtest_running()) {
+        MessageBoxInfo("NekoBoxP3R", tr("A test is already running, wait until it finishes."));
+        return;
+    }
+    if (get_now_selected_list().isEmpty()) {
+        MessageBoxInfo("NekoBoxP3R", tr("Select one or several servers in the list first."));
+        return;
+    }
+    ui->menu_server->setProperty("selected_or_group", 1);
+    p3r_full_test_flags = {"3"}; // download speed only
+    MW_show_log(tr("[NekoBoxP3R] Checking download speed (about 10-30 s per server)..."));
+    speedtest_current_group(2 /* libcore::FullTest */, false);
+    ui->menu_server->setProperty("selected_or_group", 2);
+}
+
+static QString p3r_site_suggestion(QString host) {
+    host = host.trimmed().toLower();
+    if (host.startsWith("[")) host = host.mid(1);
+    // strip port (keep IPv6 as is)
+    if (host.count(':') == 1) host = host.section(':', 0, 0);
+    host.remove(']');
+    QHostAddress ip;
+    if (ip.setAddress(host)) return host;
+    auto labels = host.split('.', Qt::SkipEmptyParts);
+    if (labels.size() <= 2) return host;
+    static const QStringList second = {"co", "com", "net", "org", "gov", "edu", "ac", "msk", "spb"};
+    if (labels.last().size() == 2 && second.contains(labels[labels.size() - 2])) return labels.mid(labels.size() - 3).join('.');
+    return labels.mid(labels.size() - 2).join('.');
+}
+
+void MainWindow::p3r_add_site_rule(const QString &hostRaw, bool direct) {
+    bool ok;
+    auto site = QInputDialog::getText(this, direct ? tr("Site directly") : tr("Site via VPN"),
+                                      tr("Site (all its subdomains are included):"), QLineEdit::Normal,
+                                      p3r_site_suggestion(hostRaw), &ok)
+                    .trimmed()
+                    .toLower();
+    if (!ok || site.isEmpty()) return;
+    site = p3r_site_suggestion(site.section("://", -1).section('/', 0, 0));
+
+    auto &r = NekoGui::dataStore->routing;
+    QHostAddress ip;
+    bool isIp = ip.setAddress(site);
+    QString entry = isIp ? site + (site.contains(':') ? "/128" : "/32") : "domain:" + site;
+    auto clean = [&](QString &text) {
+        QStringList lines = text.split('\n');
+        lines.removeAll(entry);
+        text = lines.join('\n').trimmed();
+    };
+    if (isIp) {
+        clean(r->direct_ip);
+        clean(r->proxy_ip);
+        auto &target = direct ? r->direct_ip : r->proxy_ip;
+        target = (target.isEmpty() ? QString() : target + "\n") + entry;
+    } else {
+        clean(r->direct_domain);
+        clean(r->proxy_domain);
+        auto &target = direct ? r->direct_domain : r->proxy_domain;
+        target = (target.isEmpty() ? QString() : target + "\n") + entry;
+    }
+    r->Save();
+    p3r_notify(tr("Rule added"), direct ? tr("%1 now opens directly.").arg(site) : tr("%1 now always goes via VPN.").arg(site));
+    if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+}
+
+void MainWindow::p3r_show_sites_dialog() {
+    auto &r = NekoGui::dataStore->routing;
+    QDialog d(this);
+    d.setWindowTitle(tr("Sites: directly or via VPN"));
+    d.resize(640, 480);
+    auto layout = new QVBoxLayout(&d);
+    auto hint = new QLabel(tr("Sites in these lists override all other rules. Subdomains are included (youtube.com also covers www.youtube.com)."), &d);
+    hint->setWordWrap(true);
+    layout->addWidget(hint);
+
+    auto lists = new QHBoxLayout;
+    auto makeColumn = [&](const QString &title, const QString &domains, const QString &ips) {
+        auto col = new QVBoxLayout;
+        auto label = new QLabel("<b>" + title + "</b>", &d);
+        auto list = new QListWidget(&d);
+        list->setSelectionMode(QAbstractItemView::ExtendedSelection);
+        for (const auto &line: (domains + "\n" + ips).split('\n', Qt::SkipEmptyParts)) {
+            auto shown = line.trimmed();
+            if (shown.isEmpty() || shown.startsWith('#')) continue;
+            if (shown.startsWith("domain:")) shown = shown.mid(7);
+            list->addItem(shown);
+        }
+        col->addWidget(label);
+        col->addWidget(list, 1);
+        lists->addLayout(col);
+        return list;
+    };
+    auto directList = makeColumn(tr("DIRECTLY (without proxy)"), r->direct_domain, r->direct_ip);
+    auto proxyList = makeColumn(tr("Always via VPN"), r->proxy_domain, r->proxy_ip);
+    layout->addLayout(lists, 1);
+
+    auto buttons = new QHBoxLayout;
+    auto addDirect = new QPushButton(tr("+ Directly..."), &d);
+    auto addProxy = new QPushButton(tr("+ Via VPN..."), &d);
+    auto remove = new QPushButton(tr("Remove selected"), &d);
+    buttons->addWidget(addDirect);
+    buttons->addWidget(addProxy);
+    buttons->addStretch();
+    buttons->addWidget(remove);
+    layout->addLayout(buttons);
+
+    auto addTo = [=, &d](QListWidget *list) {
+        auto clip = QApplication::clipboard()->text().trimmed();
+        QString suggestion = clip.contains('.') && !clip.contains(' ') && clip.size() < 200 ? p3r_site_suggestion(clip.section("://", -1).section('/', 0, 0)) : QString();
+        bool ok;
+        auto site = QInputDialog::getText(&d, tr("Add site"), tr("Site, e.g. youtube.com (subdomains included):"), QLineEdit::Normal, suggestion, &ok).trimmed().toLower();
+        if (!ok || site.isEmpty()) return;
+        site = p3r_site_suggestion(site.section("://", -1).section('/', 0, 0));
+        for (auto l: {directList, proxyList}) qDeleteAll(l->findItems(site, Qt::MatchFixedString));
+        list->addItem(site);
+    };
+    connect(addDirect, &QPushButton::clicked, &d, [=] { addTo(directList); });
+    connect(addProxy, &QPushButton::clicked, &d, [=] { addTo(proxyList); });
+    connect(remove, &QPushButton::clicked, &d, [=] {
+        qDeleteAll(directList->selectedItems());
+        qDeleteAll(proxyList->selectedItems());
+    });
+
+    auto box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    connect(box, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    layout->addWidget(box);
+    if (d.exec() != QDialog::Accepted) return;
+
+    auto collect = [](QListWidget *list, QString &domains, QString &ips) {
+        // keep special lines (geosite:, full:, regexp:, keyword:, comments) the dialog does not show as plain sites
+        QStringList keepDomains;
+        for (const auto &line: domains.split('\n', Qt::SkipEmptyParts)) {
+            auto t = line.trimmed();
+            if (t.startsWith('#') || t.startsWith("geosite:") || t.startsWith("full:") || t.startsWith("regexp:") || t.startsWith("keyword:")) keepDomains << t;
+        }
+        QStringList keepIps;
+        for (const auto &line: ips.split('\n', Qt::SkipEmptyParts)) {
+            auto t = line.trimmed();
+            if (t.startsWith('#') || t.startsWith("geoip:")) keepIps << t;
+        }
+        QStringList newDomains = keepDomains, newIps = keepIps;
+        for (int i = 0; i < list->count(); i++) {
+            auto t = list->item(i)->text().trimmed();
+            if (t.isEmpty() || keepDomains.contains(t) || keepIps.contains(t)) continue;
+            QHostAddress ip;
+            bool isCidr = t.contains('/') || ip.setAddress(t);
+            if (isCidr) {
+                newIps << (t.contains('/') ? t : t + (t.contains(':') ? "/128" : "/32"));
+            } else {
+                newDomains << "domain:" + t;
+            }
+        }
+        domains = newDomains.join('\n');
+        ips = newIps.join('\n');
+    };
+    collect(directList, r->direct_domain, r->direct_ip);
+    collect(proxyList, r->proxy_domain, r->proxy_ip);
+    r->Save();
+    if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
 }

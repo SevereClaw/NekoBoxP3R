@@ -13,6 +13,7 @@
 #include <QVBoxLayout>
 #include <QEnterEvent>
 #include <QPixmap>
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QMouseEvent>
@@ -315,6 +316,8 @@ namespace P3R {
         }
     }
 
+    static void drawFlag(QPainter &p, const QRectF &r, const QString &code); // countries section
+
     // ======================================================== banner
 
     Banner::Banner(const QString &title, const QString &subtitle, QWidget *parent)
@@ -423,6 +426,38 @@ namespace P3R {
 
         // traffic graph on the right
         if (w < 560) return;
+
+        // "My IP" left of the graph
+        if (w >= 760) {
+            QFont ipf("Segoe UI");
+            ipf.setItalic(true);
+            ipf.setWeight(QFont::Bold);
+            ipf.setPointSizeF(9);
+            p.setFont(ipf);
+            QString label;
+            QColor col = kCyan;
+            if (m_ipState == 0) {
+                label = QCoreApplication::translate("P3R::Banner", "IP: checking...");
+                col = withAlpha(kIce, 160);
+            } else if (m_ipState == 3) {
+                label = QCoreApplication::translate("P3R::Banner", "IP: no internet?");
+                col = kRed;
+            } else {
+                label = m_ip + (m_ipCity.isEmpty() ? QString() : "  " + m_ipCity);
+                if (m_ipState == 2) {
+                    label = QCoreApplication::translate("P3R::Banner", "without VPN: ") + label;
+                    col = QColor("#FF8A3D");
+                }
+            }
+            QFontMetricsF fm(ipf);
+            qreal tw = fm.horizontalAdvance(label);
+            qreal right = w - 230 - 10 - 24;
+            qreal flagW = (m_ipState == 1 || m_ipState == 2) && !m_ipCountry.isEmpty() ? 26 : 0;
+            QRectF ipRect(right - tw, 0, tw, h);
+            p.setPen(col);
+            p.drawText(ipRect, Qt::AlignRight | Qt::AlignVCenter, label);
+            if (flagW > 0) drawFlag(p, QRectF(right - tw - flagW, h / 2 - 7, 22, 14), m_ipCountry);
+        }
         const qreal gw = 230, gh = h - 14;
         QRectF graphRect(w - gw - 10, 7, gw, gh);
         // slanted background block
@@ -495,6 +530,19 @@ namespace P3R {
         update();
     }
 
+    void Banner::setIpInfo(int state, const QString &ip, const QString &countryCode, const QString &city) {
+        m_ipState = state;
+        m_ip = ip;
+        m_ipCountry = countryCode;
+        m_ipCity = city;
+        setToolTip(QCoreApplication::translate("P3R::Banner", "Click to check your external IP again"));
+        update();
+    }
+
+    void Banner::mousePressEvent(QMouseEvent *) {
+        emit clicked();
+    }
+
     void Banner::clearTraffic() {
         m_up.clear();
         m_down.clear();
@@ -523,6 +571,63 @@ namespace P3R {
     }
 
     void LatencyDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+        // download speed result (Mbit/s)
+        auto speedData = index.data(SpeedRole);
+        if (speedData.isValid()) {
+            double mbps = speedData.toDouble();
+            QStyleOptionViewItem opt(option);
+            initStyleOption(&opt, index);
+            opt.text.clear();
+            auto style = opt.widget ? opt.widget->style() : QApplication::style();
+            style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, opt.widget);
+            QColor color;
+            int bars;
+            if (mbps < 0) {
+                color = kRed;
+                bars = 0;
+            } else if (mbps >= 50) {
+                color = QColor("#22DD66");
+                bars = 4;
+            } else if (mbps >= 15) {
+                color = QColor("#FFD23F");
+                bars = 3;
+            } else if (mbps >= 5) {
+                color = QColor("#FF8A3D");
+                bars = 2;
+            } else {
+                color = QColor("#FF5A6A");
+                bars = 1;
+            }
+            QString text = mbps < 0 ? QCoreApplication::translate("P3R", "no download")
+                                    : QString::number(mbps, 'f', mbps < 10 ? 1 : 0) + " " + QCoreApplication::translate("P3R", "Mbit/s");
+            painter->save();
+            painter->setRenderHint(QPainter::Antialiasing);
+            painter->setPen(Qt::NoPen);
+            QRectF r = QRectF(option.rect).adjusted(6, 4, -6, -4);
+            // arrow-like download bars
+            const qreal barW = 4, gap = 2, barsW = 4 * barW + 3 * gap;
+            for (int i = 0; i < 4; i++) {
+                qreal bh = r.height() * (0.35 + 0.65 * (i + 1) / 4.0);
+                painter->setBrush(i < bars ? color : QColor(255, 255, 255, 40));
+                painter->drawRect(QRectF(r.left() + i * (barW + gap), r.bottom() - bh, barW, bh));
+            }
+            QFont f = option.font;
+            f.setBold(true);
+            f.setItalic(true);
+            f.setPointSizeF(qMax<qreal>(f.pointSizeF(), 10.5));
+            painter->setFont(f);
+            QString shown = QString::fromUtf8("\u2193 ") + text;
+            qreal textW = QFontMetricsF(f).horizontalAdvance(shown);
+            const qreal skew = r.height() * 0.3;
+            QRectF pill(r.left() + barsW + 8, r.top(), textW + 18 + skew, r.height());
+            painter->setBrush(color);
+            painter->drawPolygon(slanted(pill, skew));
+            painter->setPen(kDeep);
+            painter->drawText(pill.adjusted(skew / 2, 0, -skew / 2, 0), Qt::AlignCenter, shown);
+            painter->restore();
+            return;
+        }
+
         auto latencyData = index.data(LatencyRole);
         int ms = latencyData.isValid() ? latencyData.toInt() : 0;
         if (!latencyData.isValid() || ms == 0) {
@@ -576,7 +681,7 @@ namespace P3R {
 
     QSize LatencyDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const {
         auto s = QStyledItemDelegate::sizeHint(option, index);
-        if (index.data(LatencyRole).toInt() != 0) s.setWidth(s.width() + 60);
+        if (index.data(LatencyRole).toInt() != 0 || index.data(SpeedRole).isValid()) s.setWidth(s.width() + 70);
         return s;
     }
 

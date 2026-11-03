@@ -100,7 +100,10 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
 
 #ifndef NKR_NO_GRPC
     QStringList full_test_flags;
-    if (mode == libcore::FullTest) {
+    if (mode == libcore::FullTest && !p3r_full_test_flags.isEmpty()) {
+        full_test_flags = p3r_full_test_flags; // NekoBoxP3R: preset (speed test button)
+        p3r_full_test_flags.clear();
+    } else if (mode == libcore::FullTest) {
         auto w = new QDialog(this);
         auto layout = new QVBoxLayout(w);
         w->setWindowTitle(tr("Test Options"));
@@ -209,7 +212,10 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
                         req.set_full_speed(full_test_flags.contains("3"));
                         req.set_full_in_out(full_test_flags.contains("4"));
 
-                        req.set_full_speed_url(NekoGui::dataStore->test_download_url.toStdString());
+                        // NekoBoxP3R: the old default (10 MB on cachefly) is too small and slow to measure fast servers
+                        auto speedUrl = NekoGui::dataStore->test_download_url;
+                        if (speedUrl == "http://cachefly.cachefly.net/10mb.test") speedUrl = "https://speed.cloudflare.com/__down?bytes=25000000";
+                        req.set_full_speed_url(speedUrl.toStdString());
                         req.set_full_speed_timeout(NekoGui::dataStore->test_download_timeout);
                     } else if (mode == libcore::TcpPing) {
                         req.set_address(profile->bean->DisplayAddress().toStdString());

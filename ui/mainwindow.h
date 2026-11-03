@@ -181,6 +181,8 @@ private:
     void p3r_killswitch_on_crash();
     void p3r_killswitch_release(bool notify);
     void p3r_show_apps_dialog();
+    QPushButton *p3r_apps_button = nullptr;
+    void p3r_refresh_apps_button();
     P3R::Banner *p3r_banner = nullptr;
     P3R::EmptyState *p3r_empty = nullptr;
     bool p3r_is_favorite(int id) const;
@@ -192,6 +194,14 @@ private:
     void p3r_dark_hour_tick();
     void p3r_apply_dark_hour(bool on);
     void p3r_show_main_window();
+    // My IP, speed test, site rules
+    class QNetworkAccessManager *p3r_nam = nullptr;
+    int p3r_ip_request = 0;
+    void p3r_check_ip();
+    void p3r_speed_test_selected();
+    QStringList p3r_full_test_flags; // when set, a full test runs without the options dialog
+    void p3r_add_site_rule(const QString &host, bool direct);
+    void p3r_show_sites_dialog();
     bool p3r_pick_running_apps(QStringList &out);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;

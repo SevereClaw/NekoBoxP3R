@@ -98,6 +98,13 @@ namespace P3R {
         void playIntro();
         void addTraffic(qint64 upBytesPerSec, qint64 downBytesPerSec);
         void clearTraffic();
+        // "My IP": state 0 = unknown/checking, 1 = through the proxy, 2 = direct (no VPN), 3 = error
+        void setIpInfo(int state, const QString &ip, const QString &countryCode, const QString &city);
+    signals:
+        void clicked();
+
+    protected:
+        void mousePressEvent(QMouseEvent *) override;
 
     protected:
         void paintEvent(QPaintEvent *) override;
@@ -106,6 +113,8 @@ namespace P3R {
     private:
         QString m_title, m_subtitle;
         QList<qint64> m_up, m_down; // last samples, bytes/s
+        int m_ipState = 0;
+        QString m_ip, m_ipCountry, m_ipCity;
         qreal m_progress = 1;
         bool m_introPlayed = false;
         QVariantAnimation *m_anim;
@@ -115,6 +124,7 @@ namespace P3R {
     // item data: LatencyRole = latency ms (-1 unavailable, 0 untested), GreenRole = "good" threshold ms
     inline constexpr int LatencyRole = Qt::UserRole + 0x51;
     inline constexpr int GreenRole = Qt::UserRole + 0x52;
+    inline constexpr int SpeedRole = Qt::UserRole + 0x53; // download speed in Mbit/s (double), -1 = failed
     class LatencyDelegate : public QStyledItemDelegate {
     public:
         using QStyledItemDelegate::QStyledItemDelegate;

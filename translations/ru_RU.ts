@@ -2,7 +2,34 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
+    <name>P3R</name>
+    <message>
+        <source>no download</source>
+        <translation>нет загрузки</translation>
+    </message>
+    <message>
+        <source>Mbit/s</source>
+        <translation>Мбит/с</translation>
+    </message>
+</context>
+<context>
     <name>P3R::Banner</name>
+    <message>
+        <source>IP: checking...</source>
+        <translation>IP: проверяю...</translation>
+    </message>
+    <message>
+        <source>IP: no internet?</source>
+        <translation>IP: нет интернета?</translation>
+    </message>
+    <message>
+        <source>without VPN: </source>
+        <translation>без VPN: </translation>
+    </message>
+    <message>
+        <source>Click to check your external IP again</source>
+        <translation>Нажми, чтобы ещё раз проверить внешний IP</translation>
+    </message>
     <message>
         <source>DARK HOUR</source>
         <translation>ТЁМНЫЙ ЧАС</translation>
@@ -1146,6 +1173,132 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>Check download speed (Mbit/s)</source>
+        <translation>Проверить скорость скачивания (Мбит/с)</translation>
+    </message>
+    <message>
+        <source>Downloads a test file through the selected servers and shows the real speed</source>
+        <translation>Скачивает тестовый файл через выбранные серверы и показывает реальную скорость</translation>
+    </message>
+    <message>
+        <source>Check my IP</source>
+        <translation>Проверить мой IP</translation>
+    </message>
+    <message>
+        <source>Sites: directly or via VPN...</source>
+        <translation>Сайты: напрямую или через VPN...</translation>
+    </message>
+    <message>
+        <source>This site always DIRECTLY</source>
+        <translation>Этот сайт всегда НАПРЯМУЮ</translation>
+    </message>
+    <message>
+        <source>This site always via VPN</source>
+        <translation>Этот сайт всегда через VPN</translation>
+    </message>
+    <message>
+        <source>A test is already running, wait until it finishes.</source>
+        <translation>Проверка уже идёт, дождись её окончания.</translation>
+    </message>
+    <message>
+        <source>Select one or several servers in the list first.</source>
+        <translation>Сначала выбери один или несколько серверов в списке.</translation>
+    </message>
+    <message>
+        <source>[NekoBoxP3R] Checking download speed (about 10-30 s per server)...</source>
+        <translation>[NekoBoxP3R] Проверяю скорость скачивания (около 10–30 с на сервер)...</translation>
+    </message>
+    <message>
+        <source>Site directly</source>
+        <translation>Сайт напрямую</translation>
+    </message>
+    <message>
+        <source>Site via VPN</source>
+        <translation>Сайт через VPN</translation>
+    </message>
+    <message>
+        <source>Site (all its subdomains are included):</source>
+        <translation>Сайт (все поддомены тоже):</translation>
+    </message>
+    <message>
+        <source>Rule added</source>
+        <translation>Правило добавлено</translation>
+    </message>
+    <message>
+        <source>%1 now opens directly.</source>
+        <translation>%1 теперь открывается напрямую.</translation>
+    </message>
+    <message>
+        <source>%1 now always goes via VPN.</source>
+        <translation>%1 теперь всегда идёт через VPN.</translation>
+    </message>
+    <message>
+        <source>Sites: directly or via VPN</source>
+        <translation>Сайты: напрямую или через VPN</translation>
+    </message>
+    <message>
+        <source>Sites in these lists override all other rules. Subdomains are included (youtube.com also covers www.youtube.com).</source>
+        <translation>Сайты из этих списков главнее остальных правил. Поддомены тоже учитываются (youtube.com включает и www.youtube.com).</translation>
+    </message>
+    <message>
+        <source>DIRECTLY (without proxy)</source>
+        <translation>НАПРЯМУЮ (без прокси)</translation>
+    </message>
+    <message>
+        <source>Always via VPN</source>
+        <translation>Всегда через VPN</translation>
+    </message>
+    <message>
+        <source>+ Directly...</source>
+        <translation>+ Напрямую...</translation>
+    </message>
+    <message>
+        <source>+ Via VPN...</source>
+        <translation>+ Через VPN...</translation>
+    </message>
+    <message>
+        <source>Remove selected</source>
+        <translation>Удалить выбранные</translation>
+    </message>
+    <message>
+        <source>Add site</source>
+        <translation>Добавить сайт</translation>
+    </message>
+    <message>
+        <source>Site, e.g. youtube.com (subdomains included):</source>
+        <translation>Сайт, например youtube.com (поддомены тоже):</translation>
+    </message>
+    <message>
+        <source>To send ONLY the chosen programs through the proxy, the program has to see the traffic of all programs, so "VPN for all apps" must be on.
+The other programs will still go directly, because of this rule.
+
+Turn it on now?</source>
+        <translation>Чтобы через прокси шли ТОЛЬКО выбранные программы, NekoBoxP3R должен видеть трафик всех программ, поэтому нужен режим «VPN для всех программ».
+Остальные программы всё равно пойдут напрямую — так работает это правило.
+
+Включить сейчас?</translation>
+    </message>
+    <message>
+        <source>For the chosen programs to go directly, "VPN for all apps" must be on (otherwise most programs do not use the proxy anyway).
+
+Turn it on now?</source>
+        <translation>Чтобы выбранные программы шли напрямую, нужен режим «VPN для всех программ» (без него большинство программ и так не используют прокси).
+
+Включить сейчас?</translation>
+    </message>
+    <message>
+        <source>Apps: %1 directly</source>
+        <translation>Программы: %1 напрямую</translation>
+    </message>
+    <message>
+        <source>Apps: only %1 via VPN</source>
+        <translation>Программы: только %1 через VPN</translation>
+    </message>
+    <message>
+        <source>ONLY these programs go through the proxy, all others directly (e.g. only Discord). Needs "VPN for all apps".</source>
+        <translation>ТОЛЬКО эти программы идут через прокси, все остальные напрямую (например, только Discord). Нужен «VPN для всех программ».</translation>
+    </message>
     <message>
         <source>Dark Hour at midnight</source>
         <translation>Тёмный час в полночь</translation>
