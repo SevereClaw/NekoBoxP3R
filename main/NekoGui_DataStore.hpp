@@ -121,6 +121,8 @@ namespace NekoGui {
         bool p3r_notifications = true;  // NekoBoxP3R: Windows notifications
         QString p3r_hotkey_connect = "Ctrl+Alt+P"; // NekoBoxP3R: connect / disconnect
         QStringList p3r_favorites = {};  // NekoBoxP3R: favorite profile ids
+        bool p3r_dark_hour = true;       // NekoBoxP3R: green theme 00:00-01:00
+        bool p3r_splash = true;          // NekoBoxP3R: start-up splash
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

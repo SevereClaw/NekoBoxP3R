@@ -37,6 +37,8 @@
 #endif
 
 #include <QClipboard>
+#include <QPropertyAnimation>
+#include <QPalette>
 #include <QUrl>
 #include <algorithm>
 #include <QRadioButton>
@@ -459,7 +461,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(TM_auto_update_subsctiption, &QTimer::timeout, this, [&] { UI_update_all_groups(true); });
     TM_auto_update_subsctiption_Reset_Minute(NekoGui::dataStore->sub_auto_update);
 
-    if (!NekoGui::dataStore->flag_tray) show();
+    if (!NekoGui::dataStore->flag_tray) p3r_show_main_window(); // NekoBoxP3R: with the splash
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -2070,6 +2072,39 @@ void MainWindow::p3r_setup() {
 #endif
     ui->menu_program->insertSeparator(first);
 
+    // Dark Hour
+    auto actionDark = new QAction(tr("Dark Hour at midnight"), this);
+    actionDark->setCheckable(true);
+    actionDark->setChecked(NekoGui::dataStore->p3r_dark_hour);
+    actionDark->setToolTip(tr("From 00:00 to 01:00 the Persona 3 theme turns green, like the Dark Hour in the game."));
+    connect(actionDark, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_dark_hour = checked;
+        NekoGui::dataStore->Save();
+        p3r_dark_hour_tick();
+    });
+    auto actionDarkPreview = new QAction(tr("Show the Dark Hour now (30 s)"), this);
+    connect(actionDarkPreview, &QAction::triggered, this, [=] {
+        p3r_dark_hour_preview_until = QDateTime::currentMSecsSinceEpoch() + 30 * 1000;
+        p3r_dark_hour_tick();
+        QTimer::singleShot(31 * 1000, this, [=] { p3r_dark_hour_tick(); });
+    });
+    auto actionSplash = new QAction(tr("Splash screen at start"), this);
+    actionSplash->setCheckable(true);
+    actionSplash->setChecked(NekoGui::dataStore->p3r_splash);
+    connect(actionSplash, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_splash = checked;
+        NekoGui::dataStore->Save();
+    });
+    ui->menu_program->insertAction(first, actionDark);
+    ui->menu_program->insertAction(first, actionDarkPreview);
+    ui->menu_program->insertAction(first, actionSplash);
+    ui->menu_program->insertSeparator(first);
+    auto darkTimer = new QTimer(this);
+    darkTimer->setInterval(20 * 1000);
+    connect(darkTimer, &QTimer::timeout, this, [=] { p3r_dark_hour_tick(); });
+    darkTimer->start();
+    QTimer::singleShot(0, this, [=] { p3r_dark_hour_tick(); });
+
     // failover watchdog
     auto watchdog = new QTimer(this);
     watchdog->setInterval(20 * 1000);
@@ -2549,4 +2584,55 @@ void MainWindow::p3r_paste_from_clipboard() {
         return;
     }
     NekoGui_sub::groupUpdater->AsyncUpdate(text);
+}
+
+// ======================== NekoBoxP3R: Dark Hour & splash ========================
+
+void MainWindow::p3r_dark_hour_tick() {
+    bool p3rTheme = NekoGui::dataStore->theme == "4";
+    bool preview = QDateTime::currentMSecsSinceEpoch() < p3r_dark_hour_preview_until;
+    bool midnight = QTime::currentTime().hour() == 0;
+    bool want = p3rTheme && (preview || (NekoGui::dataStore->p3r_dark_hour && midnight));
+    if (!p3rTheme) p3r_dark_hour_active = false; // another theme took over
+    if (want == p3r_dark_hour_active) return;
+    p3r_apply_dark_hour(want);
+    if (want && !preview) p3r_notify(tr("The Dark Hour has begun"), tr("00:00. The theme turned green until 01:00."));
+}
+
+void MainWindow::p3r_apply_dark_hour(bool on) {
+    p3r_dark_hour_active = on;
+    P3R::SetDarkHourPalette(on);
+
+    QFile f(":/themes/p3r/p3r.css");
+    if (!f.open(QIODevice::ReadOnly)) return;
+    QString qss = QString::fromUtf8(f.readAll()).replace(":/qss/", ":/themes/feiyangqingyun/qss/");
+    if (on) qss = P3R::DarkHourQss(qss);
+    QFile nf(":/neko/neko.css");
+    QString neko = nf.open(QIODevice::ReadOnly) ? QString::fromUtf8(nf.readAll()) : QString();
+    qApp->setPalette(QPalette(QColor(qss.mid(20, 7))));
+    qApp->setStyleSheet(qss + "\n" + neko);
+    themeManager->current_theme = "4";
+    for (auto w: QApplication::allWidgets()) w->update();
+}
+
+void MainWindow::p3r_show_main_window() {
+    bool tunRestart = NekoGui::dataStore->argv.contains("-flag_restart_tun_on");
+    if (!NekoGui::dataStore->p3r_splash || !P3R::animationsEnabled || tunRestart) {
+        show();
+        return;
+    }
+    auto splash = new P3R::Splash(QPixmap(":/neko/nekobox.png"));
+    connect(splash, &P3R::Splash::reveal, this, [=] {
+        setWindowOpacity(0.0);
+        show();
+        raise();
+        activateWindow();
+        auto fade = new QPropertyAnimation(this, "windowOpacity", this);
+        fade->setDuration(650);
+        fade->setStartValue(0.0);
+        fade->setEndValue(1.0);
+        fade->setEasingCurve(QEasingCurve::OutCubic);
+        fade->start(QAbstractAnimation::DeleteWhenStopped);
+    });
+    splash->start();
 }

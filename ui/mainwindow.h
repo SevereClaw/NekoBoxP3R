@@ -186,6 +186,12 @@ private:
     bool p3r_is_favorite(int id) const;
     void p3r_toggle_favorite(const QList<int> &ids);
     void p3r_paste_from_clipboard();
+    // Dark Hour & splash
+    bool p3r_dark_hour_active = false;
+    qint64 p3r_dark_hour_preview_until = 0;
+    void p3r_dark_hour_tick();
+    void p3r_apply_dark_hour(bool on);
+    void p3r_show_main_window();
     bool p3r_pick_running_apps(QStringList &out);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;

@@ -16,6 +16,31 @@ namespace P3R {
     inline bool soundsEnabled = true;
     inline bool animationsEnabled = true;
 
+    // ---- Dark Hour (00:00-01:00): green palette for painted widgets + green theme ----
+    void SetDarkHourPalette(bool on);
+    bool IsDarkHour();
+    QString DarkHourQss(QString qss);
+
+    // Start-up splash: full screen, the icon spins and fades out, then the app appears
+    class Splash : public QWidget {
+        Q_OBJECT
+    public:
+        explicit Splash(const QPixmap &icon);
+        void start();
+    signals:
+        void reveal();
+
+    protected:
+        void paintEvent(QPaintEvent *) override;
+        void mousePressEvent(QMouseEvent *) override;
+
+    private:
+        QPixmap m_icon;
+        qreal m_t = 0;
+        bool m_revealed = false;
+        QVariantAnimation *m_anim;
+    };
+
     // Installs the app-wide event filter that slides menus in and fades dialogs.
     void InstallAnimator();
 

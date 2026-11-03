@@ -2,6 +2,13 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
+    <name>P3R::Banner</name>
+    <message>
+        <source>DARK HOUR</source>
+        <translation>ТЁМНЫЙ ЧАС</translation>
+    </message>
+</context>
+<context>
     <name>P3R::EmptyState</name>
     <message>
         <source>No servers yet</source>
@@ -1139,6 +1146,30 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>Dark Hour at midnight</source>
+        <translation>Тёмный час в полночь</translation>
+    </message>
+    <message>
+        <source>From 00:00 to 01:00 the Persona 3 theme turns green, like the Dark Hour in the game.</source>
+        <translation>С 00:00 до 01:00 тема Persona 3 становится зелёной, как Тёмный час в игре.</translation>
+    </message>
+    <message>
+        <source>Show the Dark Hour now (30 s)</source>
+        <translation>Показать Тёмный час сейчас (30 с)</translation>
+    </message>
+    <message>
+        <source>Splash screen at start</source>
+        <translation>Заставка при запуске</translation>
+    </message>
+    <message>
+        <source>The Dark Hour has begun</source>
+        <translation>Наступил Тёмный час</translation>
+    </message>
+    <message>
+        <source>00:00. The theme turned green until 01:00.</source>
+        <translation>00:00. Тема стала зелёной до 01:00.</translation>
+    </message>
     <message>
         <source>Add to / remove from favorites</source>
         <translation>Добавить в избранное / убрать</translation>

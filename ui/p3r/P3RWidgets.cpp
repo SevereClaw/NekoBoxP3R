@@ -13,6 +13,9 @@
 #include <QVBoxLayout>
 #include <QEnterEvent>
 #include <QPixmap>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QEvent>
@@ -35,14 +38,45 @@
 
 namespace P3R {
 
-    // palette
-    static const QColor kNavy("#0A1A33");
-    static const QColor kDeep("#061026");
-    static const QColor kBlue("#1F4F8A");
-    static const QColor kCyan("#2EE6FF");
-    static const QColor kIce("#EAF6FF");
-    static const QColor kRed("#FF2B3B");
-    static const QColor kDarkRed("#8A0F1C");
+    // palette (switched by SetDarkHourPalette)
+    static QColor kNavy("#0A1A33");
+    static QColor kDeep("#061026");
+    static QColor kBlue("#1F4F8A");
+    static QColor kCyan("#2EE6FF");
+    static QColor kIce("#EAF6FF");
+    static QColor kRed("#FF2B3B");
+    static QColor kDarkRed("#8A0F1C");
+    static bool gDarkHour = false;
+
+    static QColor withAlpha(QColor c, int a) {
+        c.setAlpha(a);
+        return c;
+    }
+
+    void SetDarkHourPalette(bool on) {
+        gDarkHour = on;
+        kNavy = QColor(on ? "#08190C" : "#0A1A33");
+        kDeep = QColor(on ? "#040E06" : "#061026");
+        kBlue = QColor(on ? "#1F5A2A" : "#1F4F8A");
+        kCyan = QColor(on ? "#7CFF4F" : "#2EE6FF");
+        kIce = QColor(on ? "#E9FFD9" : "#EAF6FF");
+        kRed = QColor(on ? "#E0102A" : "#FF2B3B");
+        kDarkRed = QColor(on ? "#6A0010" : "#8A0F1C");
+    }
+
+    bool IsDarkHour() { return gDarkHour; }
+
+    QString DarkHourQss(QString qss) {
+        static const char *map[][2] = {
+            {"#2EE6FF", "#7CFF4F"}, {"#0A1A33", "#08190C"}, {"#061026", "#040E06"}, {"#1F4F8A", "#1F5A2A"},
+            {"#EAF6FF", "#E9FFD9"}, {"#0F2547", "#0D2A14"}, {"#1B4A86", "#1C5226"}, {"#9FC3E6", "#A9D99A"},
+            {"#5B7A9C", "#5E7F55"}, {"#16345C", "#17391C"}, {"#13305A", "#133519"}, {"#081530", "#06160A"},
+            {"#050C1A", "#030A04"}, {"#BFE6FF", "#C8F5B5"}, {"#163E73", "#18452A"}, {"#102A50", "#0F2E15"},
+            {"#0E2D5E", "#0F3A17"}, {"#0D2448", "#0C2A12"}, {"#0C1E3E", "#0A2210"}, {"#FF2B3B", "#E0102A"},
+        };
+        for (const auto &m: map) qss.replace(m[0], m[1], Qt::CaseInsensitive);
+        return qss;
+    }
 
     // A parallelogram leaning right (like P3R menu blocks)
     static QPolygonF slanted(const QRectF &r, qreal skew) {
@@ -328,7 +362,7 @@ namespace P3R {
         QRectF slab(-skew + (t - 1) * w, 4, w * 0.78, h - 8);
         QLinearGradient g(slab.topLeft(), slab.topRight());
         g.setColorAt(0, kBlue);
-        g.setColorAt(1, QColor(31, 79, 138, 0));
+        g.setColorAt(1, withAlpha(kBlue, 0));
         p.setBrush(g);
         p.drawPolygon(slanted(slab, skew));
 
@@ -340,6 +374,20 @@ namespace P3R {
         p.drawPolygon(slanted(QRectF(w * 0.35 + (1 - t2) * w, 2, w * 0.4, 3), 3));
         p.setBrush(kRed);
         p.drawPolygon(slanted(QRectF(10 + (t2 - 1) * 200, 8, 10, h - 18), 6));
+
+        // Dark Hour: a huge sickly moon and the label
+        if (gDarkHour) {
+            qreal R = h * 1.3;
+            QPointF c(w * 0.5, h * 0.15);
+            QRadialGradient mg(c, R);
+            mg.setColorAt(0, QColor(230, 255, 140, 200));
+            mg.setColorAt(0.55, QColor(170, 255, 90, 90));
+            mg.setColorAt(1, QColor(124, 255, 79, 0));
+            p.setBrush(mg);
+            p.drawEllipse(c, R, R);
+            p.setBrush(QColor(240, 255, 170, 230));
+            p.drawEllipse(c, h * 0.42, h * 0.42);
+        }
 
         // title
         QFont f("Segoe UI");
@@ -360,18 +408,27 @@ namespace P3R {
         s.setWeight(QFont::Bold);
         s.setPointSizeF(9);
         p.setFont(s);
-        p.setPen(QColor(46, 230, 255, int(255 * t)));
+        p.setPen(withAlpha(kCyan, int(255 * t)));
         qreal subX = titleRect.left() + titleMetrics.horizontalAdvance(m_title) + 12;
         p.drawText(QRectF(subX, 0, 120, h - 6), Qt::AlignLeft | Qt::AlignBottom, m_subtitle);
+        if (gDarkHour) {
+            QFont df("Segoe UI");
+            df.setItalic(true);
+            df.setWeight(QFont::Black);
+            df.setPointSizeF(12);
+            p.setFont(df);
+            p.setPen(QColor(224, 16, 42));
+            p.drawText(QRectF(subX + 60, 0, 220, h), Qt::AlignLeft | Qt::AlignVCenter, tr("DARK HOUR"));
+        }
 
         // traffic graph on the right
         if (w < 560) return;
         const qreal gw = 230, gh = h - 14;
-        QRectF g(w - gw - 10, 7, gw, gh);
+        QRectF graphRect(w - gw - 10, 7, gw, gh);
         // slanted background block
         p.setPen(Qt::NoPen);
-        p.setBrush(QColor(6, 16, 38, 200));
-        p.drawPolygon(slanted(g.adjusted(-14, 0, 0, 0), 12));
+        p.setBrush(withAlpha(kDeep, 200));
+        p.drawPolygon(slanted(graphRect.adjusted(-14, 0, 0, 0), 12));
 
         auto human = [](qint64 v) {
             if (v < 0) v = 0;
@@ -383,7 +440,7 @@ namespace P3R {
         for (auto v: m_down) maxV = qMax(maxV, v);
         for (auto v: m_up) maxV = qMax(maxV, v);
 
-        QRectF plot = g.adjusted(6, 4, -96, -4);
+        QRectF plot = graphRect.adjusted(6, 4, -96, -4);
         auto line = [&](const QList<qint64> &data) {
             QPolygonF poly;
             const int n = 60;
@@ -399,8 +456,8 @@ namespace P3R {
             QPolygonF area = down;
             area << QPointF(down.last().x(), plot.bottom()) << QPointF(down.first().x(), plot.bottom());
             QLinearGradient ag(plot.topLeft(), plot.bottomLeft());
-            ag.setColorAt(0, QColor(46, 230, 255, 150));
-            ag.setColorAt(1, QColor(46, 230, 255, 10));
+            ag.setColorAt(0, withAlpha(kCyan, 150));
+            ag.setColorAt(1, withAlpha(kCyan, 10));
             p.setBrush(ag);
             p.drawPolygon(area);
             p.setPen(QPen(kCyan, 1.6));
@@ -413,7 +470,7 @@ namespace P3R {
             p.drawPolyline(line(m_up));
         }
         // baseline
-        p.setPen(QPen(QColor(46, 230, 255, 60), 1));
+        p.setPen(QPen(withAlpha(kCyan, 60), 1));
         p.drawLine(QPointF(plot.left(), plot.bottom()), QPointF(plot.right(), plot.bottom()));
 
         // numbers
@@ -422,12 +479,12 @@ namespace P3R {
         nf.setWeight(QFont::Bold);
         nf.setPointSizeF(8.5);
         p.setFont(nf);
-        QRectF txt(plot.right() + 8, g.top() + 2, 90, g.height() / 2 - 2);
+        QRectF txt(plot.right() + 8, graphRect.top() + 2, 90, graphRect.height() / 2 - 2);
         bool idle = m_down.isEmpty();
         p.setPen(kCyan);
         p.drawText(txt, Qt::AlignLeft | Qt::AlignVCenter, QString::fromUtf8("\u2193 ") + (idle ? QString("—") : human(m_down.last())));
         p.setPen(Qt::white);
-        p.drawText(txt.translated(0, g.height() / 2 - 2), Qt::AlignLeft | Qt::AlignVCenter, QString::fromUtf8("\u2191 ") + (idle ? QString("—") : human(m_up.last())));
+        p.drawText(txt.translated(0, graphRect.height() / 2 - 2), Qt::AlignLeft | Qt::AlignVCenter, QString::fromUtf8("\u2191 ") + (idle ? QString("—") : human(m_up.last())));
     }
 
     void Banner::addTraffic(qint64 up, qint64 down) {
@@ -718,16 +775,108 @@ namespace P3R {
     void EmptyState::paintEvent(QPaintEvent *) {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
-        p.fillRect(rect(), QColor(8, 21, 48, 245));
+        p.fillRect(rect(), withAlpha(kNavy, 245));
         p.setPen(Qt::NoPen);
-        p.setBrush(QColor(31, 79, 138, 90));
+        p.setBrush(withAlpha(kBlue, 90));
         p.drawPolygon(slanted(QRectF(width() * 0.55, 0, width() * 0.5, height()), height() * 0.35));
         // thin cyan stripe parallel to the block edge
         qreal x0 = width() * 0.55, sk = height() * 0.35;
         QPolygonF stripe;
         stripe << QPointF(x0 + sk - 22, 0) << QPointF(x0 + sk - 12, 0) << QPointF(x0 - 12, height()) << QPointF(x0 - 22, height());
-        p.setBrush(QColor(46, 230, 255, 70));
+        p.setBrush(withAlpha(kCyan, 70));
         p.drawPolygon(stripe);
+    }
+
+    // ======================================================== splash
+
+    Splash::Splash(const QPixmap &icon) : QWidget(nullptr), m_icon(icon) {
+        setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
+        setAttribute(Qt::WA_TranslucentBackground);
+        setAttribute(Qt::WA_DeleteOnClose);
+        setCursor(Qt::PointingHandCursor);
+        if (auto screen = QGuiApplication::primaryScreen()) setGeometry(screen->geometry());
+        m_anim = new QVariantAnimation(this);
+        m_anim->setDuration(2300);
+        m_anim->setStartValue(0.0);
+        m_anim->setEndValue(1.0);
+        connect(m_anim, &QVariantAnimation::valueChanged, this, [=](const QVariant &v) {
+            m_t = v.toReal();
+            if (m_t >= 0.68 && !m_revealed) {
+                m_revealed = true;
+                emit reveal(); // show the main window under the fading splash
+            }
+            update();
+        });
+        connect(m_anim, &QVariantAnimation::finished, this, [=] {
+            if (!m_revealed) {
+                m_revealed = true;
+                emit reveal();
+            }
+            close();
+        });
+    }
+
+    void Splash::start() {
+        show();
+        raise();
+        m_anim->start();
+    }
+
+    void Splash::mousePressEvent(QMouseEvent *) {
+        // skip: jump to the fade-out
+        if (m_anim->state() == QAbstractAnimation::Running && m_anim->currentTime() < 1550) m_anim->setCurrentTime(1550);
+    }
+
+    static qreal smooth(qreal a, qreal b, qreal x) {
+        qreal t = qBound(0.0, (x - a) / (b - a), 1.0);
+        return t * t * (3 - 2 * t);
+    }
+
+    void Splash::paintEvent(QPaintEvent *) {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        p.setPen(Qt::NoPen);
+        const qreal t = m_t;
+        const qreal in = smooth(0.0, 0.18, t), out = smooth(0.68, 1.0, t);
+        const qreal alpha = in * (1 - out);
+        const QPointF c = rect().center();
+        const qreal w = width(), h = height();
+
+        // backdrop
+        p.fillRect(rect(), withAlpha(kDeep, int(225 * alpha)));
+        QRadialGradient glow(c, qMin(w, h) * 0.45);
+        glow.setColorAt(0, withAlpha(kCyan, int(90 * alpha)));
+        glow.setColorAt(1, withAlpha(kCyan, 0));
+        p.setBrush(glow);
+        p.drawEllipse(c, qMin(w, h) * 0.45, qMin(w, h) * 0.45);
+
+        // slanted P3R bars sweeping across
+        qreal sweep = smooth(0.05, 0.75, t);
+        qreal skew = h * 0.25;
+        p.setBrush(withAlpha(kBlue, int(150 * alpha)));
+        p.drawPolygon(slanted(QRectF(-w + sweep * w * 1.6, c.y() - 70, w * 0.9, 140), skew * 0.3));
+        p.setBrush(withAlpha(kCyan, int(200 * alpha)));
+        p.drawPolygon(slanted(QRectF(w - sweep * w * 1.7, c.y() + 80, w * 0.6, 10), 8));
+        p.setBrush(QColor(255, 255, 255, int(180 * alpha)));
+        p.drawPolygon(slanted(QRectF(-w * 0.5 + sweep * w * 1.5, c.y() - 92, w * 0.5, 4), 4));
+
+        // ring
+        qreal size = qMin(w, h) * 0.26 * (0.6 + 0.4 * in + 0.35 * out);
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen(withAlpha(kCyan, int(200 * alpha)), 3));
+        p.drawEllipse(c, size * 0.62, size * 0.62);
+        p.setPen(Qt::NoPen);
+
+        // spinning icon: two turns, slowing down at the end
+        qreal spin = smooth(0.08, 0.72, t) * 720.0;
+        p.save();
+        p.setOpacity(alpha);
+        p.translate(c);
+        p.rotate(spin);
+        QRectF target(-size / 2, -size / 2, size, size);
+        p.drawPixmap(target, m_icon, QRectF(m_icon.rect()));
+        p.restore();
     }
 
     // ======================================================== about
@@ -806,7 +955,7 @@ namespace P3R {
         const qreal h = height();
 
         QLinearGradient bg(0, 0, width(), h);
-        bg.setColorAt(0, QColor("#0E2D5E"));
+        bg.setColorAt(0, gDarkHour ? QColor("#0F3A17") : QColor("#0E2D5E"));
         bg.setColorAt(0.6, kNavy);
         bg.setColorAt(1, kDeep);
         p.fillRect(rect(), bg);
