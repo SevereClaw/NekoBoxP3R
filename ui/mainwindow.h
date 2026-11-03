@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include "ui/p3r/P3RWidgets.hpp"
 #include <QPushButton>
 #include <QAction>
 
@@ -158,7 +159,9 @@ private:
     int proxy_last_order = -1;
     bool select_mode = false;
     // NekoBoxP3R
-    QPushButton *p3r_connect_button = nullptr;
+    P3R::ConnectButton *p3r_connect_button = nullptr;
+    int p3r_last_connected = -1;
+    void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;
     bool p3r_update_dialog_open = false;
     void p3r_setup();

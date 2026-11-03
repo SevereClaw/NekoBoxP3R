@@ -109,6 +109,8 @@ namespace NekoGui {
         QString theme = "4"; // Persona 3
         bool simple_mode = true;  // NekoBoxP3R
         bool p3r_auto_update = true; // NekoBoxP3R
+        bool p3r_sounds = true;      // NekoBoxP3R
+        bool p3r_animations = true;  // NekoBoxP3R
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

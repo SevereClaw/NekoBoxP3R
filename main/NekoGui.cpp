@@ -247,6 +247,8 @@ namespace NekoGui {
         _add(new configItem("theme", &theme, itemType::string));
         _add(new configItem("simple_mode", &simple_mode, itemType::boolean));
         _add(new configItem("p3r_auto_update", &p3r_auto_update, itemType::boolean));
+        _add(new configItem("p3r_sounds", &p3r_sounds, itemType::boolean));
+        _add(new configItem("p3r_animations", &p3r_animations, itemType::boolean));
         _add(new configItem("last_started_id", &last_started_id, itemType::integer));
         _add(new configItem("custom_inbound", &custom_inbound, itemType::string));
         _add(new configItem("custom_route", &custom_route_global, itemType::string));

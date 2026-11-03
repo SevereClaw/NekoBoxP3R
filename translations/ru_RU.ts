@@ -2,6 +2,45 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
+    <name>P3R::AboutDialog</name>
+    <message>
+        <source>About NekoBoxP3R</source>
+        <translation>О программе NekoBoxP3R</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>Версия %1</translation>
+    </message>
+    <message>
+        <source>NekoBox in the style of Persona 3: theme, big connect button, simple mode, animations, sounds and updates from GitHub.</source>
+        <translation>NekoBox в стиле Persona 3: тема, большая кнопка подключения, упрощённый режим, анимации, звуки и обновления с GitHub.</translation>
+    </message>
+    <message>
+        <source>Based on &lt;a href=&quot;%1&quot;&gt;NekoBox (nekoray)&lt;/a&gt; by MatsuriDayo and contributors. Core: &lt;a href=&quot;%2&quot;&gt;sing-box&lt;/a&gt;. UI: Qt.</source>
+        <translation>Основано на &lt;a href=&quot;%1&quot;&gt;NekoBox (nekoray)&lt;/a&gt; от MatsuriDayo и участников. Ядро: &lt;a href=&quot;%2&quot;&gt;sing-box&lt;/a&gt;. Интерфейс: Qt.</translation>
+    </message>
+    <message>
+        <source>License: &lt;a href=&quot;%1&quot;&gt;GNU GPL v3.0&lt;/a&gt;. Source code: &lt;a href=&quot;%2&quot;&gt;%2&lt;/a&gt;</source>
+        <translation>Лицензия: &lt;a href=&quot;%1&quot;&gt;GNU GPL v3.0&lt;/a&gt;. Исходный код: &lt;a href=&quot;%2&quot;&gt;%2&lt;/a&gt;</translation>
+    </message>
+    <message>
+        <source>Persona is a trademark of ATLUS / SEGA. This is a fan project and is not affiliated with them.</source>
+        <translation>Persona — торговая марка ATLUS / SEGA. Это фанатский проект, не связанный с ними.</translation>
+    </message>
+    <message>
+        <source>Check for updates</source>
+        <translation>Проверить обновления</translation>
+    </message>
+    <message>
+        <source>Source code</source>
+        <translation>Исходный код</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Закрыть</translation>
+    </message>
+</context>
+<context>
     <name>DialogBasicSettings</name>
     <message>
         <source>Basic Settings</source>
@@ -1073,6 +1112,22 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>Sounds</source>
+        <translation>Звуки</translation>
+    </message>
+    <message>
+        <source>Animations</source>
+        <translation>Анимации</translation>
+    </message>
+    <message>
+        <source>About NekoBoxP3R</source>
+        <translation>О программе NekoBoxP3R</translation>
+    </message>
+    <message>
+        <source>About</source>
+        <translation>О программе</translation>
+    </message>
     <message>
         <source>Check for updates</source>
         <translation>Проверить обновления</translation>

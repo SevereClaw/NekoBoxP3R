@@ -162,6 +162,8 @@ set(PROJECT_SOURCES
 
         ui/ThemeManager.cpp
         ui/Icon.cpp
+        ui/p3r/P3RWidgets.cpp
+        ui/p3r/P3RWidgets.hpp
 
         ui/mainwindow_grpc.cpp
         ui/mainwindow.cpp

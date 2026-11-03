@@ -101,7 +101,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->toolButton_preferences->setMenu(ui->menu_preferences);
     ui->toolButton_server->setMenu(ui->menu_server);
     ui->menubar->setVisible(false);
-    connect(ui->toolButton_document, &QToolButton::clicked, this, [=] { QDesktopServices::openUrl(QUrl("https://matsuridayo.github.io/")); });
+    connect(ui->toolButton_document, &QToolButton::clicked, this, [=] { p3r_show_about(); });
     connect(ui->toolButton_ads, &QToolButton::clicked, this, [=] { QDesktopServices::openUrl(QUrl("https://neko-box.pages.dev/喵")); });
     connect(ui->toolButton_update, &QToolButton::clicked, this, [=] { runOnNewThread([=] { CheckUpdate(); }); });
     connect(ui->toolButton_url_test, &QToolButton::clicked, this, [=] { speedtest_current_group(1, true); });
@@ -860,8 +860,8 @@ void MainWindow::refresh_status(const QString &traffic_update) {
         if (NekoGui::dataStore->spmode_vpn && !NekoGui::dataStore->spmode_system_proxy) tt << "[Tun]";
         if (!NekoGui::dataStore->spmode_vpn && NekoGui::dataStore->spmode_system_proxy) tt << "[" + tr("System Proxy") + "]";
         if (NekoGui::dataStore->spmode_vpn && NekoGui::dataStore->spmode_system_proxy) tt << "[Tun+" + tr("System Proxy") + "]";
-        tt << software_name;
-        if (!isTray) tt << "(" + QString(NKR_VERSION) + ")";
+        tt << "NekoBoxP3R";
+        if (!isTray) tt << "(v" + QString(P3R_VERSION) + ")";
         if (!NekoGui::dataStore->active_routing.isEmpty() && NekoGui::dataStore->active_routing != "Default") {
             tt << "[" + NekoGui::dataStore->active_routing + "]";
         }
@@ -1850,12 +1850,16 @@ bool MainWindow::StopVPNProcess(bool unconditional) {
 
 void MainWindow::p3r_setup() {
     // Big connect button between the top bar and the server list
-    p3r_connect_button = new QPushButton(this);
+    P3R::soundsEnabled = NekoGui::dataStore->p3r_sounds;
+    P3R::animationsEnabled = NekoGui::dataStore->p3r_animations;
+    P3R::InstallAnimator();
+
+    auto banner = new P3R::Banner("NekoBoxP3R", "v" + QString(P3R_VERSION), this);
+    ui->verticalLayout_3->insertWidget(0, banner);
+
+    p3r_connect_button = new P3R::ConnectButton(this);
     p3r_connect_button->setObjectName("p3rConnectButton");
-    p3r_connect_button->setMinimumHeight(56);
-    p3r_connect_button->setCursor(Qt::PointingHandCursor);
-    p3r_connect_button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    ui->verticalLayout_3->insertWidget(1, p3r_connect_button);
+    ui->verticalLayout_3->insertWidget(2, p3r_connect_button);
     connect(p3r_connect_button, &QPushButton::clicked, this, [=] { p3r_connect_clicked(); });
 
     // Clearer hints for the two modes
@@ -1888,6 +1892,30 @@ void MainWindow::p3r_setup() {
     ui->menu_program->insertAction(first, actionCheckUpdate);
     ui->menu_program->insertAction(first, actionAutoUpdate);
     ui->menu_program->insertSeparator(first);
+
+    auto actionSounds = new QAction(tr("Sounds"), this);
+    actionSounds->setCheckable(true);
+    actionSounds->setChecked(NekoGui::dataStore->p3r_sounds);
+    connect(actionSounds, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_sounds = checked;
+        P3R::soundsEnabled = checked;
+        NekoGui::dataStore->Save();
+    });
+    auto actionAnimations = new QAction(tr("Animations"), this);
+    actionAnimations->setCheckable(true);
+    actionAnimations->setChecked(NekoGui::dataStore->p3r_animations);
+    connect(actionAnimations, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_animations = checked;
+        P3R::animationsEnabled = checked;
+        NekoGui::dataStore->Save();
+    });
+    auto actionAbout = new QAction(tr("About NekoBoxP3R"), this);
+    connect(actionAbout, &QAction::triggered, this, [=] { p3r_show_about(); });
+    ui->menu_program->insertAction(first, actionSounds);
+    ui->menu_program->insertAction(first, actionAnimations);
+    ui->menu_program->insertAction(first, actionAbout);
+    ui->menu_program->insertSeparator(first);
+    ui->toolButton_document->setText(tr("About"));
 
     auto autoCheck = [=] {
         if (NekoGui::dataStore->p3r_auto_update && !NekoGui::dataStore->flag_use_appdata) {
@@ -1936,18 +1964,24 @@ void MainWindow::p3r_refresh_connect_button() {
         text = QString::fromUtf8("\u25B6  ") + tr("CONNECT");
     }
     if (p3r_connect_button->text() != text) p3r_connect_button->setText(text);
-    if (p3r_connect_button->property("connected").toBool() != connected) {
-        p3r_connect_button->setProperty("connected", connected);
-        p3r_connect_button->style()->unpolish(p3r_connect_button);
-        p3r_connect_button->style()->polish(p3r_connect_button);
+    p3r_connect_button->setConnected(connected);
+    if (p3r_last_connected != -1 && p3r_last_connected != int(connected)) {
+        P3R::PlayFx(connected ? P3R::Sound::Connect : P3R::Sound::Disconnect);
+        p3r_connect_button->sweep();
     }
+    p3r_last_connected = int(connected);
+}
+
+void MainWindow::p3r_show_about() {
+    auto dialog = new P3R::AboutDialog(this);
+    connect(dialog, &P3R::AboutDialog::checkUpdateRequested, this, [=] { runOnNewThread([=] { CheckUpdate(false); }); });
+    dialog->show();
 }
 
 void MainWindow::p3r_apply_simple_mode() {
     bool simple = NekoGui::dataStore->simple_mode;
     ui->aaaaaaaaaaaaaaaaaa->setVisible(!simple); // log / connections panel
     ui->toolButton_ads->setVisible(!simple);
-    ui->toolButton_document->setVisible(!simple);
     ui->label_inbound->setVisible(!simple);
     ui->proxyListTable->setColumnHidden(0, simple); // Type
     ui->proxyListTable->setColumnHidden(4, simple); // Traffic

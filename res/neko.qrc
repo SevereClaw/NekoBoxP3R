@@ -15,6 +15,11 @@
         <file>icon/material/swap-horizontal.svg</file>
         <file alias="themes/p3r/p3r.css">theme/p3r/p3r.css</file>
     </qresource>
+    <qresource prefix="/p3r">
+        <file alias="sounds/menu.wav">p3r/sounds/menu.wav</file>
+        <file alias="sounds/connect.wav">p3r/sounds/connect.wav</file>
+        <file alias="sounds/disconnect.wav">p3r/sounds/disconnect.wav</file>
+    </qresource>
     <qresource prefix="/neko">
         <file alias="nekobox.png">public/nekobox.png</file>
         <file>neko.css</file>
