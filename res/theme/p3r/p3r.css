@@ -126,6 +126,6 @@ QPushButton#p3rConnectButton{min-height:64px;max-height:80px;padding:0px;margin:
 QTableWidget#proxyListTable{font-size:11pt;color:#FFFFFF;background:#081530;alternate-background-color:#0D2448;gridline-color:#102A50;}
 QTableWidget#proxyListTable::item{padding:2px 8px;}
 QTableWidget#proxyListTable QHeaderView::section{font-size:10pt;}
-QCheckBox#p3rAutoBest,QCheckBox#p3rRuDirect{font-weight:800;font-style:italic;color:#2EE6FF;padding:0px 6px;}
+QCheckBox#p3rAutoBest,QCheckBox#p3rRuDirect,QCheckBox#p3rAiVpn{font-weight:800;font-style:italic;color:#2EE6FF;padding:0px 6px;}
 QPushButton#p3rAppsButton{padding:2px 10px;min-height:14px;font-size:9pt;}
 QPushButton#p3rPasteButton{padding:5px 12px;min-height:16px;}

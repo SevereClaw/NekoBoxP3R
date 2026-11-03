@@ -252,6 +252,7 @@ namespace NekoGui {
         _add(new configItem("p3r_auto_best", &p3r_auto_best, itemType::boolean));
         _add(new configItem("p3r_elevated_task", &p3r_elevated_task, itemType::boolean));
         _add(new configItem("p3r_ru_direct", &p3r_ru_direct, itemType::boolean));
+        _add(new configItem("p3r_ai_via_vpn", &p3r_ai_via_vpn, itemType::boolean));
         _add(new configItem("p3r_failover", &p3r_failover, itemType::boolean));
         _add(new configItem("p3r_killswitch", &p3r_killswitch, itemType::boolean));
         _add(new configItem("p3r_app_mode", &p3r_app_mode, itemType::integer));

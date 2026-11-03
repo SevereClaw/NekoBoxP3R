@@ -52,6 +52,25 @@ namespace NekoGui {
         return codes;
     }
 
+    // NekoBoxP3R: AI services (blocked for Russian IPs) always go through the proxy
+    static QStringList P3R_AiDomains() {
+        QStringList domains = {
+            "domain:gemini.google.com", "domain:aistudio.google.com", "domain:ai.google.dev",
+            "domain:generativelanguage.googleapis.com", "domain:alkalimakersuite-pa.clients6.google.com",
+            "domain:notebooklm.google.com", "domain:notebooklm.google", "domain:labs.google",
+            "domain:bard.google.com", "domain:deepmind.google", "domain:gemini.google",
+            "domain:proactivebackend-pa.googleapis.com", "domain:robinfrontend-pa.googleapis.com",
+            "domain:openai.com", "domain:chatgpt.com", "domain:oaistatic.com", "domain:oaiusercontent.com",
+            "domain:anthropic.com", "domain:claude.ai", "domain:claude.com", "domain:perplexity.ai",
+            "domain:copilot.microsoft.com", "domain:grok.com", "domain:x.ai",
+        };
+        auto available = P3R_GeositeCodes(FindCoreAsset("geosite.db"));
+        for (const auto &code: {"google-gemini", "google-deepmind", "openai", "anthropic", "perplexity", "category-ai-chat-!cn"}) {
+            if (available.contains(code)) domains << QString("geosite:") + code;
+        }
+        return domains;
+    }
+
     // NekoBoxP3R: "Russian sites directly" rule lists
     static void P3R_AddRussianDirect(const std::shared_ptr<BuildConfigStatus> &status) {
         QStringList domains = {
@@ -529,6 +548,7 @@ namespace NekoGui {
         if (!status->forTest) {
             DOMAIN_USER_RULE
             IP_USER_RULE
+            if (dataStore->p3r_ai_via_vpn && dataStore->routing->dns_routing) status->domainListDNSRemote += P3R_AiDomains(); // DNS via proxy too
             if (dataStore->p3r_ru_direct) P3R_AddRussianDirect(status);
         }
 
@@ -702,7 +722,10 @@ namespace NekoGui {
             status->routingRules += rule;
         };
 
-        // NekoBoxP3R: per-app rules have the highest priority
+        // NekoBoxP3R: AI services always via proxy - the very first rule, beats per-app and Russian-direct rules
+        if (!status->forTest && dataStore->p3r_ai_via_vpn) add_rule_route(P3R_AiDomains(), false, tagProxy);
+
+        // NekoBoxP3R: per-app rules
         if (!status->forTest && dataStore->p3r_app_mode != 0 && !dataStore->p3r_app_list.isEmpty()) {
             status->routingRules += QJsonObject{
                 {"process_name", QList2QJsonArray(dataStore->p3r_app_list)},

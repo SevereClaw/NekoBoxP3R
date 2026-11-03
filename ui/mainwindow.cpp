@@ -1963,10 +1963,20 @@ void MainWindow::p3r_setup() {
         // apply right away: restart the current connection
         if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
     });
+    auto aiVpn = new QCheckBox(tr("AI services via VPN"), this);
+    aiVpn->setObjectName("p3rAiVpn");
+    aiVpn->setChecked(NekoGui::dataStore->p3r_ai_via_vpn);
+    aiVpn->setToolTip(tr("Gemini, Google AI Studio, NotebookLM, ChatGPT, Claude, Perplexity, Copilot, Grok always go through the server,\neven with \"Russian sites directly\" or \"only these apps via VPN\" (these services block Russian IP addresses)."));
+    connect(aiVpn, &QCheckBox::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_ai_via_vpn = checked;
+        NekoGui::dataStore->Save();
+        if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+    });
     auto optionsCol = new QVBoxLayout;
     optionsCol->setSpacing(2);
     optionsCol->addWidget(p3r_auto_best_check);
     optionsCol->addWidget(ruDirect);
+    optionsCol->addWidget(aiVpn);
     auto appsButton = new QPushButton(tr("Apps..."), this);
     p3r_apps_button = appsButton;
     appsButton->setObjectName("p3rAppsButton");

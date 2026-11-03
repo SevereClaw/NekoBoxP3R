@@ -114,6 +114,7 @@ namespace NekoGui {
         bool p3r_auto_best = true;   // NekoBoxP3R: connect button picks the fastest server
         bool p3r_elevated_task = false; // NekoBoxP3R: relaunch as admin via Task Scheduler (no UAC)
         bool p3r_ru_direct = true;      // NekoBoxP3R: Russian sites bypass the proxy
+        bool p3r_ai_via_vpn = true;     // NekoBoxP3R: Gemini, ChatGPT, Claude... always via proxy
         bool p3r_failover = true;       // NekoBoxP3R: switch to the fastest server when the current one dies
         bool p3r_killswitch = false;    // NekoBoxP3R: block internet if VPN drops unexpectedly
         int p3r_app_mode = 0;           // NekoBoxP3R: 0 off, 1 listed apps direct, 2 only listed apps via proxy

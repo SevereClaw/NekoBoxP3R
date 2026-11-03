@@ -1174,6 +1174,16 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>AI services via VPN</source>
+        <translation>ИИ-сервисы через VPN</translation>
+    </message>
+    <message>
+        <source>Gemini, Google AI Studio, NotebookLM, ChatGPT, Claude, Perplexity, Copilot, Grok always go through the server,
+even with "Russian sites directly" or "only these apps via VPN" (these services block Russian IP addresses).</source>
+        <translation>Gemini, Google AI Studio, NotebookLM, ChatGPT, Claude, Perplexity, Copilot, Grok всегда идут через сервер,
+даже при «Российские сайты напрямую» или «только эти программы через VPN» (эти сервисы блокируют российские IP).</translation>
+    </message>
+    <message>
         <source>%1 GB</source>
         <translation>%1 ГБ</translation>
     </message>
