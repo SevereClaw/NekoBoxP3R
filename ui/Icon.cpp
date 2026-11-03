@@ -37,7 +37,7 @@ QPixmap Icon::GetTrayIcon(Icon::TrayIconStatus status) {
     } else if (status == TrayIconStatus::SYSTEM_PROXY) {
         fill = QColor("#2EE6FF"); // cyan: system proxy
     } else if (status == TrayIconStatus::VPN) {
-        fill = QColor("#FFC21A"); // amber: VPN (TUN) - not red, so it does not merge with the ring
+        fill = QColor("#B07CFF"); // violet: VPN (TUN) - not red (ring) and not a "warning" colour
     }
 
     p.setPen(Qt::NoPen);

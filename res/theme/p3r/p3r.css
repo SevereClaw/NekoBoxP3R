@@ -18,9 +18,9 @@ QDialog QToolButton:hover{border-color:#2EE6FF;}
 /* ---- big VPN / System Proxy switches ---- */
 QCheckBox#checkBox_VPN,QCheckBox#checkBox_SystemProxy{font-weight:800;font-style:italic;font-size:11pt;spacing:8px;padding:2px 6px;}
 QCheckBox#checkBox_VPN::indicator,QCheckBox#checkBox_SystemProxy::indicator{width:30px;height:14px;border-radius:7px;}
-QCheckBox#checkBox_VPN::indicator:checked{background:#FFC21A;border:2px solid #FFFFFF;}
+QCheckBox#checkBox_VPN::indicator:checked{background:#B07CFF;border:2px solid #FFFFFF;}
 QCheckBox#checkBox_SystemProxy::indicator:checked{background:#2EE6FF;border:2px solid #FFFFFF;}
-QCheckBox#checkBox_VPN:checked{color:#FFC21A;}
+QCheckBox#checkBox_VPN:checked{color:#B07CFF;}
 QCheckBox#checkBox_SystemProxy:checked{color:#2EE6FF;}
 
 /* ---- inputs ---- */

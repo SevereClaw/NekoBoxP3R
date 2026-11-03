@@ -447,15 +447,16 @@ namespace P3R {
 
         auto root = new QHBoxLayout(this);
         root->setContentsMargins(0, 0, 18, 14);
-        root->setSpacing(18);
+        root->setSpacing(0);
 
         auto iconLabel = new QLabel;
-        iconLabel->setFixedWidth(220);
+        iconLabel->setFixedWidth(180);
         iconLabel->setAlignment(Qt::AlignCenter);
         QPixmap icon(":/neko/nekobox.png");
-        iconLabel->setPixmap(icon.scaled(150, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        iconLabel->setPixmap(icon.scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         iconLabel->setStyleSheet("background: transparent;");
         root->addWidget(iconLabel);
+        root->addSpacing(60); // keep text clear of the slanted stripes
 
         auto right = new QVBoxLayout;
         right->setSpacing(6);
@@ -477,6 +478,7 @@ namespace P3R {
             "<p>" + tr("License: <a href=\"%1\">GNU GPL v3.0</a>. Source code: <a href=\"%2\">%2</a>")
                         .arg("https://www.gnu.org/licenses/gpl-3.0.html", repo) + "</p>" +
             "<p style=\"color:#7FA3C8\">" + tr("Persona is a trademark of ATLUS / SEGA. This is a fan project and is not affiliated with them.") + "</p>");
+        body->setText(body->text().replace("<a href=", "<a style=\"color:#2EE6FF; font-weight:600;\" href="));
         body->setWordWrap(true);
         body->setOpenExternalLinks(true);
         body->setTextFormat(Qt::RichText);
@@ -517,15 +519,20 @@ namespace P3R {
         bg.setColorAt(1, kDeep);
         p.fillRect(rect(), bg);
 
-        // slanted panel behind the icon
-        p.setBrush(kBlue);
-        p.drawPolygon(slanted(QRectF(-60, 0, 300, h), 70));
-        p.setBrush(kCyan);
-        p.drawPolygon(slanted(QRectF(196, 0, 14, h), 70));
-        p.setBrush(Qt::white);
-        p.drawPolygon(slanted(QRectF(216, 0, 4, h), 70));
+        // slanted panel behind the icon; everything stays left of x = 210 (text starts at 240)
+        const qreal lean = 50; // how far the top edge is shifted to the right
+        auto band = [&](qreal xBottom, qreal w, const QColor &c) {
+            QPolygonF poly;
+            poly << QPointF(xBottom + lean, 0) << QPointF(xBottom + lean + w, 0)
+                 << QPointF(xBottom + w, h) << QPointF(xBottom, h);
+            p.setBrush(c);
+            p.drawPolygon(poly);
+        };
+        band(-lean, 180, kBlue);    // panel: top 0..180, bottom -50..130
+        band(136, 12, kCyan);       // cyan stripe: top 186..198
+        band(153, 3, Qt::white);    // thin white line: top 203..206
         p.setBrush(kRed);
-        p.drawPolygon(slanted(QRectF(0, h - 28, 180, 10), 8));
+        p.drawPolygon(slanted(QRectF(0, h - 28, 150, 10), 8));
     }
 
 } // namespace P3R

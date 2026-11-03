@@ -1113,6 +1113,10 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Not connected</source>
+        <translation>Не подключено</translation>
+    </message>
+    <message>
         <source>&quot;VPN for all apps&quot; needs administrator rights.
 
 Set it up once so the program always starts with these rights without asking? Windows will ask for confirmation one time.</source>
