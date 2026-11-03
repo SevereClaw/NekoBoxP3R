@@ -63,6 +63,10 @@ namespace NekoGui {
             "domain:openai.com", "domain:chatgpt.com", "domain:oaistatic.com", "domain:oaiusercontent.com",
             "domain:anthropic.com", "domain:claude.ai", "domain:claude.com", "domain:perplexity.ai",
             "domain:copilot.microsoft.com", "domain:grok.com", "domain:x.ai",
+            // Google must never see the real Russian IP during sign-in: its .ru domains would otherwise
+            // go directly because of "Russian sites directly", and Google would tie the session to Russia
+            "domain:google.ru", "domain:google.com.ru", "domain:accounts.google.com", "domain:myaccount.google.com",
+            "domain:gstatic.com", "domain:googleusercontent.com", "domain:play.google.com", "domain:ogs.google.com",
         };
         auto available = P3R_GeositeCodes(FindCoreAsset("geosite.db"));
         for (const auto &code: {"google-gemini", "google-deepmind", "openai", "anthropic", "perplexity", "category-ai-chat-!cn"}) {
