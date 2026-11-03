@@ -37,6 +37,8 @@
 #endif
 
 #include <QClipboard>
+#include <QUrl>
+#include <algorithm>
 #include <QRadioButton>
 #include <QListWidget>
 #include <QFileDialog>
@@ -860,6 +862,7 @@ void MainWindow::refresh_status(const QString &traffic_update) {
         traffic_update_cache = traffic_update;
         if (traffic_update == "STOP") {
             traffic_update_cache = "";
+            if (p3r_banner != nullptr) p3r_banner->clearTraffic();
         } else {
             refresh_speed_label();
             return;
@@ -1064,6 +1067,13 @@ void MainWindow::refresh_proxy_list_impl(const int &id, GroupSortAction groupSor
             }
         }
         ui->proxyListTable->update_order(groupSortAction.save_sort);
+        // NekoBoxP3R: favorites on top (stable, keeps the order inside both parts)
+        auto &rows = ui->proxyListTable->row2Id;
+        std::stable_partition(rows.begin(), rows.end(), [=](int pid) { return p3r_is_favorite(pid); });
+    }
+    if (p3r_empty != nullptr) {
+        p3r_empty->setVisible(ui->proxyListTable->rowCount() == 0);
+        p3r_empty->raise();
     }
 
     // refresh data
@@ -1101,7 +1111,9 @@ void MainWindow::refresh_proxy_list_impl_refresh_data(const int &id) {
 
         // C2: Name
         f = f0->clone();
-        f->setText(profile->bean->name);
+        f->setText(P3R::StripFlags(profile->bean->name));
+        f->setIcon(QIcon(P3R::NameIcon(P3R::DetectCountry(profile->bean->name), p3r_is_favorite(profileId), devicePixelRatioF())));
+        f->setToolTip(profile->bean->name);
         if (isRunning) f->setForeground(palette().link());
         ui->proxyListTable->setItem(row, 2, f);
 
@@ -1903,6 +1915,7 @@ void MainWindow::p3r_setup() {
     P3R::InstallAnimator();
 
     auto banner = new P3R::Banner("NekoBoxP3R", "v" + QString(P3R_VERSION), this);
+    p3r_banner = banner;
     ui->verticalLayout_3->insertWidget(0, banner);
 
     p3r_connect_button = new P3R::ConnectButton(this);
@@ -2075,6 +2088,32 @@ void MainWindow::p3r_setup() {
     connect(actionBest, &QAction::triggered, this, [=] { p3r_connect_best(); });
     ui->menu_server->insertAction(ui->menu_server->actions().value(0), actionBest);
     p3r_apply_clear_names();
+
+    // favorites: click the star in the Name column, or the Server menu
+    ui->proxyListTable->setIconSize(QSize(46, 16));
+    connect(ui->proxyListTable, &QTableWidget::cellClicked, this, [=](int row, int column) {
+        if (column != 2 || row < 0 || row >= ui->proxyListTable->row2Id.size()) return;
+        auto rect = ui->proxyListTable->visualRect(ui->proxyListTable->model()->index(row, column));
+        auto pos = ui->proxyListTable->viewport()->mapFromGlobal(QCursor::pos());
+        if (pos.x() - rect.left() <= 24) p3r_toggle_favorite({ui->proxyListTable->row2Id[row]});
+    });
+    auto actionFav = new QAction(tr("Add to / remove from favorites"), this);
+    connect(actionFav, &QAction::triggered, this, [=] {
+        QList<int> ids;
+        for (const auto &ent: get_now_selected_list()) ids << ent->id;
+        p3r_toggle_favorite(ids);
+    });
+    ui->menu_server->insertAction(ui->menu_server->actions().value(1), actionFav);
+
+    // paste link / subscription: button in the top bar + empty-list screen
+    auto pasteButton = new QPushButton(QString::fromUtf8("\uFF0B ") + tr("Paste link"), this);
+    pasteButton->setObjectName("p3rPasteButton");
+    pasteButton->setToolTip(tr("Add a server link (vless://, vmess://, ss://...) or a subscription link (https://...) from the clipboard"));
+    connect(pasteButton, &QPushButton::clicked, this, [=] { p3r_paste_from_clipboard(); });
+    ui->horizontalLayout_2->insertWidget(ui->horizontalLayout_2->indexOf(ui->search), pasteButton);
+    p3r_empty = new P3R::EmptyState(ui->proxyListTable);
+    connect(p3r_empty, &P3R::EmptyState::pasteClicked, this, [=] { p3r_paste_from_clipboard(); });
+    p3r_empty->hide();
 
     auto autoCheck = [=] {
         if (NekoGui::dataStore->p3r_auto_update && !NekoGui::dataStore->flag_use_appdata) {
@@ -2459,4 +2498,55 @@ void MainWindow::p3r_show_apps_dialog() {
     NekoGui::dataStore->p3r_app_list = apps;
     NekoGui::dataStore->Save();
     if (changed && NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+}
+
+// ======================== NekoBoxP3R: favorites, traffic graph, paste ========================
+
+void MainWindow::p3r_traffic_sample(qint64 up, qint64 down) {
+    if (p3r_banner != nullptr) p3r_banner->addTraffic(up, down);
+}
+
+bool MainWindow::p3r_is_favorite(int id) const {
+    return NekoGui::dataStore->p3r_favorites.contains(QString::number(id));
+}
+
+void MainWindow::p3r_toggle_favorite(const QList<int> &ids) {
+    if (ids.isEmpty()) return;
+    bool makeFav = !p3r_is_favorite(ids.first()); // same action for the whole selection
+    for (auto id: ids) {
+        auto key = QString::number(id);
+        NekoGui::dataStore->p3r_favorites.removeAll(key);
+        if (makeFav) NekoGui::dataStore->p3r_favorites << key;
+    }
+    NekoGui::dataStore->Save();
+    refresh_proxy_list();
+}
+
+void MainWindow::p3r_paste_from_clipboard() {
+    auto text = QApplication::clipboard()->text().trimmed();
+    if (text.isEmpty()) {
+        MessageBoxInfo("NekoBoxP3R", tr("The clipboard is empty. Copy a server link or a subscription link first."));
+        return;
+    }
+    bool isUrl = (text.startsWith("http://") || text.startsWith("https://")) && !text.contains('\n') && !text.contains(' ');
+    if (isUrl) {
+        // a subscription: its own group that can be updated later
+        auto group = NekoGui::ProfileManager::NewGroup();
+        auto host = QUrl(text).host();
+        group->name = host.isEmpty() ? tr("Subscription") : host;
+        group->url = text;
+        NekoGui::profileManager->AddGroup(group);
+        refresh_groups();
+        auto gid = group->id;
+        MW_show_log(tr("[NekoBoxP3R] Adding subscription %1").arg(group->name));
+        NekoGui_sub::groupUpdater->AsyncUpdate(text, gid, [=] {
+            runOnUiThread([=] { show_group(gid); });
+        });
+        return;
+    }
+    if (!text.contains("://")) {
+        MessageBoxInfo("NekoBoxP3R", tr("There is no server link in the clipboard.\nA link looks like vless://..., vmess://..., trojan://..., ss://... or https://... for a subscription."));
+        return;
+    }
+    NekoGui_sub::groupUpdater->AsyncUpdate(text);
 }

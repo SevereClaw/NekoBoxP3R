@@ -2,7 +2,6 @@
 #include "ui_dialog_hotkey.h"
 
 #include "ui/mainwindow_interface.h"
-#include "3rdparty/QtExtKeySequenceEdit.h"
 #include <QGridLayout>
 #include <QLabel>
 

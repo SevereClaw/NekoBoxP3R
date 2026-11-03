@@ -52,6 +52,7 @@ public:
     void refresh_groups();
 
     void refresh_status(const QString &traffic_update = "");
+    void p3r_traffic_sample(qint64 up, qint64 down); // NekoBoxP3R: speed graph in the banner
 
     void neko_start(int _id = -1);
 
@@ -180,6 +181,11 @@ private:
     void p3r_killswitch_on_crash();
     void p3r_killswitch_release(bool notify);
     void p3r_show_apps_dialog();
+    P3R::Banner *p3r_banner = nullptr;
+    P3R::EmptyState *p3r_empty = nullptr;
+    bool p3r_is_favorite(int id) const;
+    void p3r_toggle_favorite(const QList<int> &ids);
+    void p3r_paste_from_clipboard();
     bool p3r_pick_running_apps(QStringList &out);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;

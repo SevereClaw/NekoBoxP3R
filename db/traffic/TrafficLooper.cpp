@@ -120,6 +120,7 @@ namespace NekoGui_traffic {
                 auto m = GetMainWindow();
                 if (proxy != nullptr) {
                     m->refresh_status(QObject::tr("Proxy: %1\nDirect: %2").arg(proxy->DisplaySpeed(), bypass->DisplaySpeed()));
+                    m->p3r_traffic_sample(proxy->uplink_rate + bypass->uplink_rate, proxy->downlink_rate + bypass->downlink_rate);
                 }
                 for (const auto &item: items) {
                     if (item->id < 0) continue;

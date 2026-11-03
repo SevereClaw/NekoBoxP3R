@@ -43,6 +43,27 @@ namespace P3R {
         QVariantAnimation *m_sweepAnim;
     };
 
+    // ---- countries & favorites in the server list ----
+    // Country code ("DE") from a server name: flag emoji, ISO code token, country or city name (en/ru).
+    QString DetectCountry(const QString &name);
+    // Name without flag emoji (Windows cannot draw them).
+    QString StripFlags(const QString &name);
+    // Icon for the Name column: favorite star + mini flag (or code badge). Width 46, height 16 (logical px).
+    QPixmap NameIcon(const QString &code, bool favorite, qreal dpr);
+
+    // Empty server list: first steps + big paste button
+    class EmptyState : public QWidget {
+        Q_OBJECT
+    public:
+        explicit EmptyState(QWidget *parentToCover);
+    signals:
+        void pasteClicked();
+
+    protected:
+        bool eventFilter(QObject *obj, QEvent *event) override;
+        void paintEvent(QPaintEvent *) override;
+    };
+
     // Slanted title banner at the top of the main window
     class Banner : public QWidget {
         Q_OBJECT
@@ -50,6 +71,8 @@ namespace P3R {
         explicit Banner(const QString &title, const QString &subtitle, QWidget *parent = nullptr);
         QSize sizeHint() const override { return {400, 46}; }
         void playIntro();
+        void addTraffic(qint64 upBytesPerSec, qint64 downBytesPerSec);
+        void clearTraffic();
 
     protected:
         void paintEvent(QPaintEvent *) override;
@@ -57,6 +80,7 @@ namespace P3R {
 
     private:
         QString m_title, m_subtitle;
+        QList<qint64> m_up, m_down; // last samples, bytes/s
         qreal m_progress = 1;
         bool m_introPlayed = false;
         QVariantAnimation *m_anim;

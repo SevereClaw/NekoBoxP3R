@@ -2,6 +2,29 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
+    <name>P3R::EmptyState</name>
+    <message>
+        <source>No servers yet</source>
+        <translation>Серверов пока нет</translation>
+    </message>
+    <message>
+        <source>&lt;b style='color:#2EE6FF'&gt;1.&lt;/b&gt; Copy a server link (&lt;i&gt;vless://, vmess://, trojan://, ss://, hy2://&lt;/i&gt;…) or a subscription link (&lt;i&gt;https://…&lt;/i&gt;) from your provider.</source>
+        <translation>&lt;b style='color:#2EE6FF'&gt;1.&lt;/b&gt; Скопируй у своего провайдера ссылку на сервер (&lt;i&gt;vless://, vmess://, trojan://, ss://, hy2://&lt;/i&gt;…) или ссылку на подписку (&lt;i&gt;https://…&lt;/i&gt;).</translation>
+    </message>
+    <message>
+        <source>&lt;b style='color:#2EE6FF'&gt;2.&lt;/b&gt; Press the button below — the program takes it from the clipboard.</source>
+        <translation>&lt;b style='color:#2EE6FF'&gt;2.&lt;/b&gt; Нажми кнопку ниже — программа возьмёт её из буфера обмена.</translation>
+    </message>
+    <message>
+        <source>&lt;b style='color:#2EE6FF'&gt;3.&lt;/b&gt; Press &lt;b&gt;CONNECT&lt;/b&gt;.</source>
+        <translation>&lt;b style='color:#2EE6FF'&gt;3.&lt;/b&gt; Нажми &lt;b&gt;ПОДКЛЮЧИТЬСЯ&lt;/b&gt;.</translation>
+    </message>
+    <message>
+        <source>PASTE LINK OR SUBSCRIPTION</source>
+        <translation>ВСТАВИТЬ ССЫЛКУ ИЛИ ПОДПИСКУ</translation>
+    </message>
+</context>
+<context>
     <name>P3R::AboutDialog</name>
     <message>
         <source>About NekoBoxP3R</source>
@@ -1116,6 +1139,36 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>Add to / remove from favorites</source>
+        <translation>Добавить в избранное / убрать</translation>
+    </message>
+    <message>
+        <source>Paste link</source>
+        <translation>Вставить ссылку</translation>
+    </message>
+    <message>
+        <source>Add a server link (vless://, vmess://, ss://...) or a subscription link (https://...) from the clipboard</source>
+        <translation>Добавить из буфера обмена ссылку на сервер (vless://, vmess://, ss://...) или на подписку (https://...)</translation>
+    </message>
+    <message>
+        <source>The clipboard is empty. Copy a server link or a subscription link first.</source>
+        <translation>Буфер обмена пуст. Сначала скопируй ссылку на сервер или на подписку.</translation>
+    </message>
+    <message>
+        <source>Subscription</source>
+        <translation>Подписка</translation>
+    </message>
+    <message>
+        <source>[NekoBoxP3R] Adding subscription %1</source>
+        <translation>[NekoBoxP3R] Добавляю подписку %1</translation>
+    </message>
+    <message>
+        <source>There is no server link in the clipboard.
+A link looks like vless://..., vmess://..., trojan://..., ss://... or https://... for a subscription.</source>
+        <translation>В буфере обмена нет ссылки на сервер.
+Ссылка выглядит как vless://..., vmess://..., trojan://..., ss://... или https://... для подписки.</translation>
+    </message>
     <message>
         <source>local port only</source>
         <translation>только локальный порт</translation>

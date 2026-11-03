@@ -120,6 +120,7 @@ namespace NekoGui {
         QStringList p3r_app_list = {};  // NekoBoxP3R: exe names, e.g. "Discord.exe"
         bool p3r_notifications = true;  // NekoBoxP3R: Windows notifications
         QString p3r_hotkey_connect = "Ctrl+Alt+P"; // NekoBoxP3R: connect / disconnect
+        QStringList p3r_favorites = {};  // NekoBoxP3R: favorite profile ids
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

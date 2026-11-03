@@ -13,11 +13,15 @@
 #include <QVBoxLayout>
 #include <QEnterEvent>
 #include <QPixmap>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QEvent>
 #include <QStyleOptionViewItem>
 #include <QStyle>
 #include <QFontMetricsF>
 #include <QAbstractItemView>
 #include <QDesktopServices>
+#include <cmath>
 #include <QUrl>
 
 #ifdef Q_OS_WIN
@@ -349,93 +353,381 @@ namespace P3R {
         p.setPen(Qt::white);
         p.drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter, m_title);
 
-        // subtitle (version) on the right
+        // version right after the title
+        QFontMetricsF titleMetrics(f);
         QFont s("Segoe UI");
         s.setItalic(true);
         s.setWeight(QFont::Bold);
         s.setPointSizeF(9);
         p.setFont(s);
         p.setPen(QColor(46, 230, 255, int(255 * t)));
-        p.drawText(QRectF(0, 0, w - 12, h), Qt::AlignRight | Qt::AlignVCenter, m_subtitle);
+        qreal subX = titleRect.left() + titleMetrics.horizontalAdvance(m_title) + 12;
+        p.drawText(QRectF(subX, 0, 120, h - 6), Qt::AlignLeft | Qt::AlignBottom, m_subtitle);
+
+        // traffic graph on the right
+        if (w < 560) return;
+        const qreal gw = 230, gh = h - 14;
+        QRectF g(w - gw - 10, 7, gw, gh);
+        // slanted background block
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(6, 16, 38, 200));
+        p.drawPolygon(slanted(g.adjusted(-14, 0, 0, 0), 12));
+
+        auto human = [](qint64 v) {
+            if (v < 0) v = 0;
+            if (v < 1024) return QStringLiteral("%1 B/s").arg(v);
+            if (v < 1024 * 1024) return QStringLiteral("%1 KB/s").arg(v / 1024.0, 0, 'f', v < 10 * 1024 ? 1 : 0);
+            return QStringLiteral("%1 MB/s").arg(v / 1048576.0, 0, 'f', 1);
+        };
+        qint64 maxV = 64 * 1024;
+        for (auto v: m_down) maxV = qMax(maxV, v);
+        for (auto v: m_up) maxV = qMax(maxV, v);
+
+        QRectF plot = g.adjusted(6, 4, -96, -4);
+        auto line = [&](const QList<qint64> &data) {
+            QPolygonF poly;
+            const int n = 60;
+            for (int i = 0; i < data.size(); i++) {
+                qreal x = plot.right() - (data.size() - 1 - i) * plot.width() / (n - 1);
+                qreal y = plot.bottom() - plot.height() * qreal(data[i]) / qreal(maxV);
+                poly << QPointF(x, y);
+            }
+            return poly;
+        };
+        if (m_down.size() >= 2) {
+            auto down = line(m_down);
+            QPolygonF area = down;
+            area << QPointF(down.last().x(), plot.bottom()) << QPointF(down.first().x(), plot.bottom());
+            QLinearGradient ag(plot.topLeft(), plot.bottomLeft());
+            ag.setColorAt(0, QColor(46, 230, 255, 150));
+            ag.setColorAt(1, QColor(46, 230, 255, 10));
+            p.setBrush(ag);
+            p.drawPolygon(area);
+            p.setPen(QPen(kCyan, 1.6));
+            p.setBrush(Qt::NoBrush);
+            p.drawPolyline(down);
+        }
+        if (m_up.size() >= 2) {
+            p.setPen(QPen(QColor(255, 255, 255, 210), 1.2));
+            p.setBrush(Qt::NoBrush);
+            p.drawPolyline(line(m_up));
+        }
+        // baseline
+        p.setPen(QPen(QColor(46, 230, 255, 60), 1));
+        p.drawLine(QPointF(plot.left(), plot.bottom()), QPointF(plot.right(), plot.bottom()));
+
+        // numbers
+        QFont nf("Segoe UI");
+        nf.setItalic(true);
+        nf.setWeight(QFont::Bold);
+        nf.setPointSizeF(8.5);
+        p.setFont(nf);
+        QRectF txt(plot.right() + 8, g.top() + 2, 90, g.height() / 2 - 2);
+        bool idle = m_down.isEmpty();
+        p.setPen(kCyan);
+        p.drawText(txt, Qt::AlignLeft | Qt::AlignVCenter, QString::fromUtf8("\u2193 ") + (idle ? QString("—") : human(m_down.last())));
+        p.setPen(Qt::white);
+        p.drawText(txt.translated(0, g.height() / 2 - 2), Qt::AlignLeft | Qt::AlignVCenter, QString::fromUtf8("\u2191 ") + (idle ? QString("—") : human(m_up.last())));
     }
 
-    // ======================================================== latency
+    void Banner::addTraffic(qint64 up, qint64 down) {
+        m_up << up;
+        m_down << down;
+        while (m_up.size() > 60) m_up.removeFirst();
+        while (m_down.size() > 60) m_down.removeFirst();
+        update();
+    }
 
-    static void latencyLook(int ms, int green, QColor &color, int &bars) {
-        if (ms < 0) {
-            color = kRed;
-            bars = 0;
-        } else if (ms < green) {
-            color = QColor("#22DD66");
-            bars = 4;
-        } else if (ms < green * 5 / 2) {
-            color = QColor("#FFD23F");
-            bars = 3;
-        } else if (ms < 1000) {
-            color = QColor("#FF8A3D");
-            bars = 2;
+    void Banner::clearTraffic() {
+        m_up.clear();
+        m_down.clear();
+        update();
+    }
+
+    // ======================================================== countries
+
+    struct CountryInfo {
+        const char *code;
+        const char *names; // lowercase, '|' separated: english, russian, big cities
+    };
+    static const CountryInfo kCountries[] = {
+        {"DE", "germany|deutschland|германия|frankfurt|франкфурт|berlin|берлин|munich|мюнхен|nuremberg|nürnberg|falkenstein|düsseldorf|dusseldorf"},
+        {"NL", "netherlands|holland|нидерланды|голландия|amsterdam|амстердам|rotterdam"},
+        {"FI", "finland|финляндия|helsinki|хельсинки"},
+        {"SE", "sweden|швеция|stockholm|стокгольм"},
+        {"NO", "norway|норвегия|oslo|осло"},
+        {"DK", "denmark|дания|copenhagen|копенгаген"},
+        {"FR", "france|франция|paris|париж|marseille|марсель|gravelines|roubaix|strasbourg"},
+        {"IT", "italy|италия|milan|милан|rome|рим"},
+        {"ES", "spain|испания|madrid|мадрид|barcelona|барселона"},
+        {"PT", "portugal|португалия|lisbon|лиссабон"},
+        {"GB", "united kingdom|britain|england|великобритания|британия|англия|london|лондон|manchester"},
+        {"IE", "ireland|ирландия|dublin|дублин"},
+        {"BE", "belgium|бельгия|brussels|брюссель"},
+        {"LU", "luxembourg|люксембург"},
+        {"CH", "switzerland|швейцария|zurich|zürich|цюрих|geneva|женева"},
+        {"AT", "austria|австрия|vienna|вена"},
+        {"PL", "poland|польша|warsaw|варшава"},
+        {"CZ", "czech|чехия|prague|прага"},
+        {"HU", "hungary|венгрия|budapest|будапешт"},
+        {"RO", "romania|румыния|bucharest|бухарест"},
+        {"BG", "bulgaria|болгария|sofia|софия"},
+        {"LT", "lithuania|литва|vilnius|вильнюс"},
+        {"LV", "latvia|латвия|riga|рига"},
+        {"EE", "estonia|эстония|tallinn|таллин"},
+        {"UA", "ukraine|украина|kyiv|kiev|киев"},
+        {"MD", "moldova|молдова|chisinau|кишинёв|кишинев"},
+        {"RU", "russia|россия|moscow|москва|saint petersburg|санкт-петербург|питер"},
+        {"KZ", "kazakhstan|казахстан|almaty|алматы|astana|астана"},
+        {"TR", "turkey|türkiye|турция|istanbul|стамбул"},
+        {"AM", "armenia|армения|yerevan|ереван"},
+        {"GE", "georgia|грузия|tbilisi|тбилиси"},
+        {"AE", "emirates|uae|оаэ|эмираты|dubai|дубай"},
+        {"IL", "israel|израиль|tel aviv"},
+        {"US", "united states|usa|америка|сша|new york|нью-йорк|los angeles|лос-анджелес|chicago|dallas|seattle|miami|ashburn|silicon valley|san jose"},
+        {"CA", "canada|канада|toronto|торонто|montreal|vancouver"},
+        {"JP", "japan|япония|tokyo|токио|osaka|осака"},
+        {"KR", "korea|корея|seoul|сеул"},
+        {"SG", "singapore|сингапур"},
+        {"HK", "hong kong|гонконг"},
+        {"IN", "india|индия|mumbai|мумбаи"},
+        {"AU", "australia|австралия|sydney|сидней"},
+        {"BR", "brazil|бразилия|são paulo|sao paulo"},
+    };
+
+    static QString flagEmojiCode(const QString &name) {
+        auto ucs = name.toUcs4();
+        for (int i = 0; i + 1 < ucs.size(); i++) {
+            if (ucs[i] >= 0x1F1E6 && ucs[i] <= 0x1F1FF && ucs[i + 1] >= 0x1F1E6 && ucs[i + 1] <= 0x1F1FF) {
+                return QString(QChar('A' + int(ucs[i] - 0x1F1E6))) + QChar('A' + int(ucs[i + 1] - 0x1F1E6));
+            }
+        }
+        return {};
+    }
+
+    QString DetectCountry(const QString &name) {
+        auto code = flagEmojiCode(name);
+        if (!code.isEmpty()) return code == "UK" ? "GB" : code;
+        // ISO code as a separate upper-case token: "DE-1", "[NL]", "US | Fast"
+        static const QRegularExpression token("(?<![A-Za-z])([A-Z]{2})(?![A-Za-z])");
+        auto it = token.globalMatch(name);
+        while (it.hasNext()) {
+            auto t = it.next().captured(1);
+            if (t == "UK") t = "GB";
+            for (const auto &c: kCountries) {
+                if (t == c.code) return t;
+            }
+        }
+        auto lower = name.toLower();
+        for (const auto &c: kCountries) {
+            for (const auto &word: QString::fromUtf8(c.names).split('|')) {
+                if (lower.contains(word)) return c.code;
+            }
+        }
+        return {};
+    }
+
+    QString StripFlags(const QString &name) {
+        auto ucs = name.toUcs4();
+        QList<char32_t> out;
+        for (int i = 0; i < ucs.size(); i++) {
+            if (ucs[i] >= 0x1F1E6 && ucs[i] <= 0x1F1FF) continue; // regional indicators
+            out << ucs[i];
+        }
+        return QString::fromUcs4(out.constData(), out.size()).trimmed();
+    }
+
+    // --- mini flags ---
+    enum class FlagKind { H3, H2, V3, Cross, Circle, SwissCross, None };
+    struct FlagSpec {
+        const char *code;
+        FlagKind kind;
+        const char *c1, *c2, *c3;
+    };
+    static const FlagSpec kFlags[] = {
+        {"DE", FlagKind::H3, "#000000", "#DD0000", "#FFCE00"},
+        {"NL", FlagKind::H3, "#AE1C28", "#FFFFFF", "#21468B"},
+        {"RU", FlagKind::H3, "#FFFFFF", "#0039A6", "#D52B1E"},
+        {"AT", FlagKind::H3, "#ED2939", "#FFFFFF", "#ED2939"},
+        {"HU", FlagKind::H3, "#CE2939", "#FFFFFF", "#477050"},
+        {"BG", FlagKind::H3, "#FFFFFF", "#00966E", "#D62612"},
+        {"LT", FlagKind::H3, "#FDB913", "#006A44", "#C1272D"},
+        {"EE", FlagKind::H3, "#0072CE", "#000000", "#FFFFFF"},
+        {"LU", FlagKind::H3, "#EA141D", "#FFFFFF", "#51ADDA"},
+        {"AM", FlagKind::H3, "#D90012", "#0033A0", "#F2A800"},
+        {"LV", FlagKind::H3, "#9E3039", "#FFFFFF", "#9E3039"},
+        {"ES", FlagKind::H3, "#AA151B", "#F1BF00", "#AA151B"},
+        {"PL", FlagKind::H2, "#FFFFFF", "#DC143C", nullptr},
+        {"UA", FlagKind::H2, "#0057B7", "#FFD700", nullptr},
+        {"FR", FlagKind::V3, "#0055A4", "#FFFFFF", "#EF4135"},
+        {"IT", FlagKind::V3, "#009246", "#FFFFFF", "#CE2B37"},
+        {"BE", FlagKind::V3, "#000000", "#FDDA24", "#EF3340"},
+        {"IE", FlagKind::V3, "#169B62", "#FFFFFF", "#FF883E"},
+        {"RO", FlagKind::V3, "#002B7F", "#FCD116", "#CE1126"},
+        {"MD", FlagKind::V3, "#0046AE", "#FFD200", "#CC092F"},
+        {"CA", FlagKind::V3, "#D80621", "#FFFFFF", "#D80621"},
+        {"SE", FlagKind::Cross, "#006AA7", "#FECC00", nullptr},
+        {"FI", FlagKind::Cross, "#FFFFFF", "#002F6C", nullptr},
+        {"DK", FlagKind::Cross, "#C8102E", "#FFFFFF", nullptr},
+        {"NO", FlagKind::Cross, "#BA0C2F", "#00205B", nullptr},
+        {"JP", FlagKind::Circle, "#FFFFFF", "#BC002D", nullptr},
+        {"CH", FlagKind::SwissCross, "#DA291C", "#FFFFFF", nullptr},
+    };
+
+    static void drawFlag(QPainter &p, const QRectF &r, const QString &code) {
+        const FlagSpec *spec = nullptr;
+        for (const auto &f: kFlags) {
+            if (code == f.code) spec = &f;
+        }
+        p.save();
+        p.setPen(Qt::NoPen);
+        QPainterPath clip;
+        clip.addRoundedRect(r, 2, 2);
+        p.setClipPath(clip);
+        if (spec == nullptr) {
+            // unknown flag: slanted badge with the code
+            p.setBrush(kBlue);
+            p.drawRect(r);
+            p.setBrush(kCyan);
+            p.drawPolygon(slanted(QRectF(r.left(), r.top(), 6, r.height()), 3));
+            QFont f("Segoe UI");
+            f.setBold(true);
+            f.setItalic(true);
+            f.setPixelSize(int(r.height() * 0.72));
+            p.setFont(f);
+            p.setPen(Qt::white);
+            p.drawText(r.adjusted(4, 0, 0, 0), Qt::AlignCenter, code);
         } else {
-            color = QColor("#FF5A6A");
-            bars = 1;
+            QColor a(spec->c1), b(spec->c2), c(spec->c3 ? spec->c3 : spec->c1);
+            switch (spec->kind) {
+                case FlagKind::H3:
+                    p.fillRect(QRectF(r.left(), r.top(), r.width(), r.height() / 3), a);
+                    p.fillRect(QRectF(r.left(), r.top() + r.height() / 3, r.width(), r.height() / 3), b);
+                    p.fillRect(QRectF(r.left(), r.top() + 2 * r.height() / 3, r.width(), r.height() / 3 + 0.5), c);
+                    break;
+                case FlagKind::H2:
+                    p.fillRect(QRectF(r.left(), r.top(), r.width(), r.height() / 2), a);
+                    p.fillRect(QRectF(r.left(), r.top() + r.height() / 2, r.width(), r.height() / 2 + 0.5), b);
+                    break;
+                case FlagKind::V3:
+                    p.fillRect(QRectF(r.left(), r.top(), r.width() / 3, r.height()), a);
+                    p.fillRect(QRectF(r.left() + r.width() / 3, r.top(), r.width() / 3, r.height()), b);
+                    p.fillRect(QRectF(r.left() + 2 * r.width() / 3, r.top(), r.width() / 3 + 0.5, r.height()), c);
+                    break;
+                case FlagKind::Cross: {
+                    p.fillRect(r, a);
+                    qreal t = r.height() * 0.22;
+                    p.fillRect(QRectF(r.left(), r.center().y() - t / 2, r.width(), t), b);
+                    p.fillRect(QRectF(r.left() + r.width() * 0.32, r.top(), t, r.height()), b);
+                    break;
+                }
+                case FlagKind::Circle:
+                    p.fillRect(r, a);
+                    p.setBrush(b);
+                    p.drawEllipse(r.center(), r.height() * 0.3, r.height() * 0.3);
+                    break;
+                case FlagKind::SwissCross: {
+                    p.fillRect(r, a);
+                    qreal t = r.height() * 0.2, l = r.height() * 0.62;
+                    p.fillRect(QRectF(r.center().x() - l / 2, r.center().y() - t / 2, l, t), b);
+                    p.fillRect(QRectF(r.center().x() - t / 2, r.center().y() - l / 2, t, l), b);
+                    break;
+                }
+                default:
+                    break;
+            }
         }
+        p.restore();
+        p.setPen(QPen(QColor(255, 255, 255, 70), 1));
+        p.setBrush(Qt::NoBrush);
+        p.drawRoundedRect(r.adjusted(0.5, 0.5, -0.5, -0.5), 2, 2);
     }
 
-    void LatencyDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
-        auto latencyData = index.data(LatencyRole);
-        int ms = latencyData.isValid() ? latencyData.toInt() : 0;
-        if (!latencyData.isValid() || ms == 0) {
-            QStyledItemDelegate::paint(painter, option, index); // untested or full test report: plain text
-            return;
+    static void drawStar(QPainter &p, const QRectF &r, bool filled) {
+        QPolygonF star;
+        auto c = r.center();
+        qreal R = r.width() / 2, rr = R * 0.45;
+        for (int i = 0; i < 10; i++) {
+            const qreal pi = 3.14159265358979323846;
+            qreal a = -pi / 2 + i * pi / 5;
+            qreal rad = (i % 2 == 0) ? R : rr;
+            star << QPointF(c.x() + rad * std::cos(a), c.y() + rad * std::sin(a));
         }
-
-        // background / selection without text
-        QStyleOptionViewItem opt(option);
-        initStyleOption(&opt, index);
-        opt.text.clear();
-        auto style = opt.widget ? opt.widget->style() : QApplication::style();
-        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, opt.widget);
-
-        int green = index.data(GreenRole).toInt();
-        if (green <= 0) green = 200;
-        QColor color;
-        int bars;
-        latencyLook(ms, green, color, bars);
-        QString text = ms < 0 ? index.data(Qt::DisplayRole).toString() : QStringLiteral("%1 ms").arg(ms);
-
-        painter->save();
-        painter->setRenderHint(QPainter::Antialiasing);
-        painter->setPen(Qt::NoPen);
-        QRectF r = QRectF(option.rect).adjusted(6, 4, -6, -4);
-
-        // signal bars
-        const qreal barW = 4, gap = 2, barsW = 4 * barW + 3 * gap;
-        for (int i = 0; i < 4; i++) {
-            qreal bh = r.height() * (0.35 + 0.65 * (i + 1) / 4.0);
-            QRectF b(r.left() + i * (barW + gap), r.bottom() - bh, barW, bh);
-            painter->setBrush(i < bars ? color : QColor(255, 255, 255, 40));
-            painter->drawRect(b);
+        if (filled) {
+            p.setPen(QPen(QColor("#B8860B"), 1));
+            p.setBrush(QColor("#FFD23F"));
+        } else {
+            p.setPen(QPen(QColor(159, 195, 230, 110), 1.2));
+            p.setBrush(Qt::NoBrush);
         }
-
-        // slanted pill with the value
-        QFont f = option.font;
-        f.setBold(true);
-        f.setItalic(true);
-        f.setPointSizeF(qMax<qreal>(f.pointSizeF(), 10.5));
-        painter->setFont(f);
-        qreal textW = QFontMetricsF(f).horizontalAdvance(text);
-        const qreal skew = r.height() * 0.3;
-        QRectF pill(r.left() + barsW + 8, r.top(), textW + 18 + skew, r.height());
-        painter->setBrush(color);
-        painter->drawPolygon(slanted(pill, skew));
-        painter->setPen(kDeep);
-        painter->drawText(pill.adjusted(skew / 2, 0, -skew / 2, 0), Qt::AlignCenter, text);
-        painter->restore();
+        p.drawPolygon(star);
     }
 
-    QSize LatencyDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const {
-        auto s = QStyledItemDelegate::sizeHint(option, index);
-        if (index.data(LatencyRole).toInt() != 0) s.setWidth(s.width() + 60);
-        return s;
+    QPixmap NameIcon(const QString &code, bool favorite, qreal dpr) {
+        QPixmap pm(QSize(46, 16) * dpr);
+        pm.setDevicePixelRatio(dpr);
+        pm.fill(Qt::transparent);
+        QPainter p(&pm);
+        p.setRenderHint(QPainter::Antialiasing);
+        drawStar(p, QRectF(1, 1, 14, 14), favorite);
+        if (!code.isEmpty()) drawFlag(p, QRectF(21, 2, 22, 12), code);
+        return pm;
+    }
+
+    // ======================================================== empty state
+
+    EmptyState::EmptyState(QWidget *parentToCover) : QWidget(parentToCover) {
+        setAttribute(Qt::WA_StyledBackground, false);
+        auto layout = new QVBoxLayout(this);
+        layout->setContentsMargins(40, 30, 40, 30);
+        layout->addStretch();
+        auto title = new QLabel(tr("No servers yet"), this);
+        title->setStyleSheet("font-size:20pt; font-weight:900; font-style:italic; color:#FFFFFF; background:transparent;");
+        layout->addWidget(title);
+        auto steps = new QLabel(
+            "<p style='line-height:150%'>" +
+                tr("<b style='color:#2EE6FF'>1.</b> Copy a server link (<i>vless://, vmess://, trojan://, ss://, hy2://</i>…) or a subscription link (<i>https://…</i>) from your provider.") + "<br>" +
+                tr("<b style='color:#2EE6FF'>2.</b> Press the button below — the program takes it from the clipboard.") + "<br>" +
+                tr("<b style='color:#2EE6FF'>3.</b> Press <b>CONNECT</b>.") + "</p>",
+            this);
+        steps->setWordWrap(true);
+        steps->setTextFormat(Qt::RichText);
+        steps->setStyleSheet("font-size:11pt; color:#EAF6FF; background:transparent;");
+        layout->addWidget(steps);
+        layout->addSpacing(10);
+        auto button = new QPushButton(QString::fromUtf8("\uFF0B  ") + tr("PASTE LINK OR SUBSCRIPTION"), this);
+        button->setObjectName("p3rPasteBig");
+        button->setCursor(Qt::PointingHandCursor);
+        button->setMinimumHeight(52);
+        button->setStyleSheet("QPushButton#p3rPasteBig{font-size:14pt;font-weight:900;font-style:italic;color:#061026;"
+                              "background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #FFFFFF,stop:0.7 #EAF6FF,stop:1 #2EE6FF);"
+                              "border:none;border-left:8px solid #2EE6FF;padding:6px 24px;min-height:40px;}"
+                              "QPushButton#p3rPasteBig:hover{border-left-color:#FF2B3B;background:#FFFFFF;}");
+        connect(button, &QPushButton::clicked, this, [=] { emit pasteClicked(); });
+        layout->addWidget(button, 0, Qt::AlignLeft);
+        layout->addStretch();
+        parentToCover->installEventFilter(this);
+        setGeometry(parentToCover->rect());
+    }
+
+    bool EmptyState::eventFilter(QObject *obj, QEvent *event) {
+        if (obj == parentWidget() && event->type() == QEvent::Resize) setGeometry(parentWidget()->rect());
+        return false;
+    }
+
+    void EmptyState::paintEvent(QPaintEvent *) {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.fillRect(rect(), QColor(8, 21, 48, 245));
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(31, 79, 138, 90));
+        p.drawPolygon(slanted(QRectF(width() * 0.55, 0, width() * 0.5, height()), height() * 0.35));
+        // thin cyan stripe parallel to the block edge
+        qreal x0 = width() * 0.55, sk = height() * 0.35;
+        QPolygonF stripe;
+        stripe << QPointF(x0 + sk - 22, 0) << QPointF(x0 + sk - 12, 0) << QPointF(x0 - 12, height()) << QPointF(x0 - 22, height());
+        p.setBrush(QColor(46, 230, 255, 70));
+        p.drawPolygon(stripe);
     }
 
     // ======================================================== about
