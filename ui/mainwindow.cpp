@@ -604,6 +604,8 @@ void MainWindow::dialog_message_impl(const QString &sender, const QString &info)
     } else if (sender == "SubUpdater") {
         if (info.startsWith("finish")) {
             refresh_proxy_list();
+            p3r_update_group_tabs();   // NekoBoxP3R: fresh traffic / expiry info
+            p3r_check_subscriptions();
             if (!info.contains("dingyue")) {
                 show_log_impl(tr("Imported %1 profile(s)").arg(NekoGui::dataStore->imported_count));
             }
@@ -989,6 +991,7 @@ void MainWindow::refresh_groups() {
     }
 
     NekoGui::dataStore->refreshing_group_list = false;
+    p3r_update_group_tabs();
 }
 
 void MainWindow::refresh_proxy_list(const int &id) {
@@ -2190,6 +2193,16 @@ void MainWindow::p3r_setup() {
     });
     QTimer::singleShot(4000, this, [=] { p3r_check_ip(); });
 
+    // subscriptions: remaining traffic and expiry (tabs + notifications)
+    auto subTimer = new QTimer(this);
+    subTimer->setInterval(60 * 60 * 1000);
+    connect(subTimer, &QTimer::timeout, this, [=] {
+        p3r_update_group_tabs();
+        p3r_check_subscriptions();
+    });
+    subTimer->start();
+    QTimer::singleShot(10 * 1000, this, [=] { p3r_check_subscriptions(); });
+
     // paste link / subscription: button in the top bar + empty-list screen
     auto pasteButton = new QPushButton(QString::fromUtf8("\uFF0B ") + tr("Paste link"), this);
     pasteButton->setObjectName("p3rPasteButton");
@@ -2924,4 +2937,109 @@ void MainWindow::p3r_show_sites_dialog() {
     collect(proxyList, r->proxy_domain, r->proxy_ip);
     r->Save();
     if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+}
+
+// ======================== NekoBoxP3R: subscription traffic & expiry ========================
+
+struct P3RSubInfo {
+    bool valid = false;
+    qint64 upload = 0, download = 0, total = 0, expire = 0;
+    [[nodiscard]] qint64 used() const { return upload + download; }
+    [[nodiscard]] qint64 left() const { return qMax<qint64>(0, total - used()); }
+    [[nodiscard]] int daysLeft() const { return expire > 0 ? int((expire - QDateTime::currentSecsSinceEpoch()) / 86400) : 99999; }
+    [[nodiscard]] bool expired() const { return expire > 0 && expire <= QDateTime::currentSecsSinceEpoch(); }
+    [[nodiscard]] bool lowTraffic() const { return total > 0 && (left() < total / 10 || left() < 1024LL * 1024 * 1024); }
+};
+
+static P3RSubInfo p3r_parse_sub_info(const QString &info) {
+    P3RSubInfo r;
+    auto num = [&](const char *key) -> qint64 {
+        auto m = QRegularExpression(QString(key) + "=([0-9]+)").match(info);
+        return m.hasMatch() ? m.captured(1).toLongLong() : -1;
+    };
+    auto up = num("upload"), down = num("download"), total = num("total"), expire = num("expire");
+    if (up < 0 && down < 0 && total < 0 && expire < 0) return r;
+    r.valid = true;
+    r.upload = qMax<qint64>(0, up);
+    r.download = qMax<qint64>(0, down);
+    r.total = qMax<qint64>(0, total);
+    r.expire = qMax<qint64>(0, expire);
+    return r;
+}
+
+static QString p3r_size(qint64 bytes) {
+    double gb = bytes / 1073741824.0;
+    if (gb >= 100) return QCoreApplication::translate("MainWindow", "%1 GB").arg(qRound(gb));
+    if (gb >= 1) return QCoreApplication::translate("MainWindow", "%1 GB").arg(gb, 0, 'f', 1);
+    return QCoreApplication::translate("MainWindow", "%1 MB").arg(qRound(bytes / 1048576.0));
+}
+
+void MainWindow::p3r_update_group_tabs() {
+    auto bar = ui->tabWidget->tabBar();
+    for (int i = 0; i < bar->count(); i++) {
+        auto group = NekoGui::profileManager->GetGroup(bar->tabData(i).toInt());
+        if (group == nullptr) continue;
+        auto si = p3r_parse_sub_info(group->info);
+        if (!si.valid) {
+            bar->setTabText(i, group->name);
+            bar->setTabToolTip(i, {});
+            bar->setTabTextColor(i, QColor());
+            continue;
+        }
+        QStringList parts{group->name};
+        QStringList tip;
+        if (si.total > 0) {
+            parts << tr("%1 left").arg(p3r_size(si.left()));
+            tip << tr("Used %1 of %2, left %3").arg(p3r_size(si.used()), p3r_size(si.total), p3r_size(si.left()));
+        } else {
+            parts << tr("unlimited");
+            tip << tr("Used %1, no traffic limit").arg(p3r_size(si.used()));
+        }
+        if (si.expire > 0) {
+            auto date = QDateTime::fromSecsSinceEpoch(si.expire);
+            bool sameYear = date.date().year() == QDate::currentDate().year();
+            parts << (si.expired() ? tr("expired") : tr("until %1").arg(date.toString(sameYear ? "dd.MM" : "dd.MM.yy")));
+            tip << (si.expired() ? tr("Expired on %1").arg(date.toString("dd.MM.yyyy"))
+                                 : tr("Paid until %1 (%2 days left)").arg(date.toString("dd.MM.yyyy")).arg(si.daysLeft()));
+        }
+        if (group->sub_last_update > 0) tip << tr("Info updated: %1").arg(QDateTime::fromSecsSinceEpoch(group->sub_last_update).toString("dd.MM.yyyy HH:mm"));
+        bar->setTabText(i, parts.join(QString::fromUtf8("  \u00B7  ")));
+        bar->setTabToolTip(i, tip.join('\n'));
+        bool warn = si.expired() || si.daysLeft() <= 3 || si.lowTraffic();
+        bar->setTabTextColor(i, warn ? QColor("#FF5A6A") : QColor());
+    }
+}
+
+void MainWindow::p3r_check_subscriptions() {
+    auto &notified = NekoGui::dataStore->p3r_sub_notified;
+    bool changed = false;
+    auto once = [&](int gid, qint64 expire, const QString &kind, const QString &title, const QString &text) {
+        auto key = QString("%1:%2:%3").arg(gid).arg(expire).arg(kind);
+        if (notified.contains(key)) return;
+        notified << key;
+        changed = true;
+        p3r_notify(title, text);
+    };
+    for (const auto &gid: NekoGui::profileManager->groupsTabOrder) {
+        auto group = NekoGui::profileManager->GetGroup(gid);
+        if (group == nullptr) continue;
+        auto si = p3r_parse_sub_info(group->info);
+        if (!si.valid) continue;
+        auto date = QDateTime::fromSecsSinceEpoch(si.expire).toString("dd.MM");
+        if (si.expired()) {
+            once(gid, si.expire, "expired", tr("Subscription expired"), tr("\"%1\" expired on %2. Renew it at your provider.").arg(group->name, date));
+        } else if (si.expire > 0 && si.daysLeft() <= 3) {
+            once(gid, si.expire, "3d", tr("Subscription ends soon"),
+                 tr("\"%1\" ends in %2 day(s), on %3.").arg(group->name).arg(qMax(0, si.daysLeft())).arg(date));
+        }
+        if (si.lowTraffic()) {
+            once(gid, si.expire, "traffic", tr("Little traffic left"), tr("\"%1\": %2 left of %3.").arg(group->name, p3r_size(si.left()), p3r_size(si.total)));
+        }
+    }
+    // forget old keys (keep the list short)
+    while (notified.size() > 100) {
+        notified.removeFirst();
+        changed = true;
+    }
+    if (changed) NekoGui::dataStore->Save();
 }

@@ -261,6 +261,7 @@ namespace NekoGui {
         _add(new configItem("p3r_favorites", &p3r_favorites, itemType::stringList));
         _add(new configItem("p3r_dark_hour", &p3r_dark_hour, itemType::boolean));
         _add(new configItem("p3r_splash", &p3r_splash, itemType::boolean));
+        _add(new configItem("p3r_sub_notified", &p3r_sub_notified, itemType::stringList));
         _add(new configItem("last_started_id", &last_started_id, itemType::integer));
         _add(new configItem("custom_inbound", &custom_inbound, itemType::string));
         _add(new configItem("custom_route", &custom_route_global, itemType::string));

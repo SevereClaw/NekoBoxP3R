@@ -123,6 +123,7 @@ namespace NekoGui {
         QStringList p3r_favorites = {};  // NekoBoxP3R: favorite profile ids
         bool p3r_dark_hour = true;       // NekoBoxP3R: green theme 00:00-01:00
         bool p3r_splash = true;          // NekoBoxP3R: start-up splash
+        QStringList p3r_sub_notified = {}; // NekoBoxP3R: "gid:expire:kind" already notified
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

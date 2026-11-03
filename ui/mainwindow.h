@@ -202,6 +202,9 @@ private:
     QStringList p3r_full_test_flags; // when set, a full test runs without the options dialog
     void p3r_add_site_rule(const QString &host, bool direct);
     void p3r_show_sites_dialog();
+    // subscription remaining traffic / expiry
+    void p3r_update_group_tabs();
+    void p3r_check_subscriptions();
     bool p3r_pick_running_apps(QStringList &out);
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;

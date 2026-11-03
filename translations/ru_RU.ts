@@ -1174,6 +1174,74 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>%1 GB</source>
+        <translation>%1 ГБ</translation>
+    </message>
+    <message>
+        <source>%1 MB</source>
+        <translation>%1 МБ</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>осталось %1</translation>
+    </message>
+    <message>
+        <source>Used %1 of %2, left %3</source>
+        <translation>Использовано %1 из %2, осталось %3</translation>
+    </message>
+    <message>
+        <source>unlimited</source>
+        <translation>безлимит</translation>
+    </message>
+    <message>
+        <source>Used %1, no traffic limit</source>
+        <translation>Использовано %1, лимита трафика нет</translation>
+    </message>
+    <message>
+        <source>expired</source>
+        <translation>закончилась</translation>
+    </message>
+    <message>
+        <source>until %1</source>
+        <translation>до %1</translation>
+    </message>
+    <message>
+        <source>Expired on %1</source>
+        <translation>Закончилась %1</translation>
+    </message>
+    <message>
+        <source>Paid until %1 (%2 days left)</source>
+        <translation>Оплачено до %1 (осталось дней: %2)</translation>
+    </message>
+    <message>
+        <source>Info updated: %1</source>
+        <translation>Данные обновлены: %1</translation>
+    </message>
+    <message>
+        <source>Subscription expired</source>
+        <translation>Подписка закончилась</translation>
+    </message>
+    <message>
+        <source>"%1" expired on %2. Renew it at your provider.</source>
+        <translation>«%1» закончилась %2. Продли её у провайдера.</translation>
+    </message>
+    <message>
+        <source>Subscription ends soon</source>
+        <translation>Подписка скоро закончится</translation>
+    </message>
+    <message>
+        <source>"%1" ends in %2 day(s), on %3.</source>
+        <translation>«%1» закончится через %2 дн., %3.</translation>
+    </message>
+    <message>
+        <source>Little traffic left</source>
+        <translation>Осталось мало трафика</translation>
+    </message>
+    <message>
+        <source>"%1": %2 left of %3.</source>
+        <translation>«%1»: осталось %2 из %3.</translation>
+    </message>
+    <message>
         <source>Check download speed (Mbit/s)</source>
         <translation>Проверить скорость скачивания (Мбит/с)</translation>
     </message>
