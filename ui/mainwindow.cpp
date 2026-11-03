@@ -1862,7 +1862,19 @@ void MainWindow::p3r_setup() {
 
     p3r_connect_button = new P3R::ConnectButton(this);
     p3r_connect_button->setObjectName("p3rConnectButton");
-    ui->verticalLayout_3->insertWidget(2, p3r_connect_button);
+    p3r_auto_best_check = new QCheckBox(tr("Fastest server"), this);
+    p3r_auto_best_check->setObjectName("p3rAutoBest");
+    p3r_auto_best_check->setChecked(NekoGui::dataStore->p3r_auto_best);
+    p3r_auto_best_check->setToolTip(tr("When on, the CONNECT button first checks the ping of all servers in the current group and connects to the fastest one.\nWhen off, it connects to the selected server."));
+    connect(p3r_auto_best_check, &QCheckBox::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_auto_best = checked;
+        NekoGui::dataStore->Save();
+        p3r_refresh_connect_button();
+    });
+    auto connectRow = new QHBoxLayout;
+    connectRow->addWidget(p3r_connect_button, 1);
+    connectRow->addWidget(p3r_auto_best_check);
+    ui->verticalLayout_3->insertLayout(2, connectRow);
     connect(p3r_connect_button, &QPushButton::clicked, this, [=] { p3r_connect_clicked(); });
 
     // Clearer hints for the two modes
@@ -1919,6 +1931,10 @@ void MainWindow::p3r_setup() {
     ui->menu_program->insertAction(first, actionAbout);
     ui->menu_program->insertSeparator(first);
     ui->toolButton_document->setText(tr("About"));
+    auto actionBest = new QAction(tr("Connect to the fastest server"), this);
+    connect(actionBest, &QAction::triggered, this, [=] { p3r_connect_best(); });
+    ui->menu_server->insertAction(ui->menu_server->actions().value(0), actionBest);
+    p3r_apply_clear_names();
 
     auto autoCheck = [=] {
         if (NekoGui::dataStore->p3r_auto_update && !NekoGui::dataStore->flag_use_appdata) {
@@ -1938,6 +1954,11 @@ void MainWindow::p3r_setup() {
 void MainWindow::p3r_connect_clicked() {
     if (running != nullptr) {
         neko_stop();
+        return;
+    }
+    if (p3r_best_pending) return; // already testing
+    if (NekoGui::dataStore->p3r_auto_best) {
+        p3r_connect_best();
         return;
     }
     // 1. selected server, 2. last used server, 3. first server in the list
@@ -1963,6 +1984,10 @@ void MainWindow::p3r_refresh_connect_button() {
     QString text;
     if (connected) {
         text = QString::fromUtf8("\u25A0  ") + tr("DISCONNECT") + "\n" + running->bean->DisplayName().left(40);
+    } else if (p3r_best_pending) {
+        text = QString::fromUtf8("\u23F1  ") + tr("CHECKING PING...") + "\n" + tr("looking for the fastest server");
+    } else if (NekoGui::dataStore->p3r_auto_best) {
+        text = QString::fromUtf8("\u25B6  ") + tr("CONNECT") + "\n" + tr("to the fastest server");
     } else {
         text = QString::fromUtf8("\u25B6  ") + tr("CONNECT");
     }
@@ -1991,4 +2016,86 @@ void MainWindow::p3r_apply_simple_mode() {
     if (p3r_simple_mode_action != nullptr && p3r_simple_mode_action->isChecked() != simple) {
         p3r_simple_mode_action->setChecked(simple);
     }
+}
+
+// ======================== NekoBoxP3R: fastest server & clear names ========================
+
+void MainWindow::p3r_connect_best() {
+    if (running != nullptr || p3r_best_pending) return;
+    auto group = NekoGui::profileManager->CurrentGroup();
+    if (group == nullptr || group->ProfilesWithOrder().isEmpty()) {
+        MessageBoxInfo("NekoBoxP3R", tr("No servers yet. Copy a server link and use Server -> Add profile from clipboard."));
+        return;
+    }
+    if (group->archive) {
+        MessageBoxInfo("NekoBoxP3R", tr("This group is archived. Open another group."));
+        return;
+    }
+    if (p3r_speedtest_running()) {
+        MessageBoxInfo("NekoBoxP3R", tr("A ping test is already running, wait until it finishes."));
+        return;
+    }
+    p3r_best_pending = true;
+    p3r_refresh_connect_button();
+    p3r_connect_button->sweep();
+    speedtest_current_group(1, true); // URL test of the whole current group
+    // safety: never stay stuck in "checking" (e.g. a test thread died)
+    QTimer::singleShot(3 * 60 * 1000, this, [=] {
+        if (p3r_best_pending && !p3r_speedtest_running()) {
+            p3r_best_pending = false;
+            p3r_refresh_connect_button();
+        }
+    });
+}
+
+void MainWindow::p3r_speedtest_finished() {
+    if (!p3r_best_pending) return;
+    p3r_best_pending = false;
+    p3r_refresh_connect_button();
+    if (running != nullptr) return;
+
+    std::shared_ptr<NekoGui::ProxyEntity> best;
+    auto group = NekoGui::profileManager->CurrentGroup();
+    if (group != nullptr) {
+        for (const auto &profile: group->ProfilesWithOrder()) {
+            if (profile->latency <= 0) continue; // 0 = not tested, -1 = unavailable
+            if (best == nullptr || profile->latency < best->latency) best = profile;
+        }
+    }
+    if (best == nullptr) {
+        MessageBoxWarning("NekoBoxP3R", tr("No server answered the ping test. Check your internet connection or update the subscription."));
+        return;
+    }
+    MW_show_log(tr("Fastest server: %1 (%2 ms)").arg(best->bean->DisplayName()).arg(best->latency));
+    neko_start(best->id);
+}
+
+void MainWindow::p3r_apply_clear_names() {
+    // main switches
+    ui->checkBox_VPN->setText(tr("VPN for all apps"));
+    ui->checkBox_VPN->setToolTip(tr("All traffic of every program on the computer goes through the proxy (TUN mode).\nUse it for games, Discord and apps without proxy settings. Requires administrator rights."));
+    ui->checkBox_SystemProxy->setText(tr("Browser and proxy-aware apps"));
+    ui->checkBox_SystemProxy->setToolTip(tr("Only browsers and programs that use the Windows proxy settings go through the proxy.\nDoes not need administrator rights. Games and many apps ignore it."));
+
+    // mode menu
+    ui->menu_spmode->setTitle(tr("Traffic mode"));
+    ui->menu_spmode->setToolTipsVisible(true);
+    ui->menu_spmode_vpn->setText(tr("VPN for all apps"));
+    ui->menu_spmode_vpn->setToolTip(ui->checkBox_VPN->toolTip());
+    ui->menu_spmode_system_proxy->setText(tr("Browser and proxy-aware apps only"));
+    ui->menu_spmode_system_proxy->setToolTip(ui->checkBox_SystemProxy->toolTip());
+    ui->menu_spmode_disabled->setText(tr("Off (only the local port %1)").arg(NekoGui::dataStore->inbound_socks_port));
+    ui->menu_spmode_disabled->setToolTip(tr("Nothing is redirected automatically. Programs can still use the proxy if you set 127.0.0.1:%1 in them manually.").arg(NekoGui::dataStore->inbound_socks_port));
+
+    // start / stop / tests
+    ui->menu_program->setToolTipsVisible(true);
+    ui->menu_server->setToolTipsVisible(true);
+    ui->menu_start->setText(tr("Connect to the selected server"));
+    ui->menu_stop->setText(tr("Disconnect"));
+    ui->menu_url_test->setText(tr("Check ping (real connection)"));
+    ui->menu_url_test->setToolTip(tr("Opens a test page through each server. Slower, but shows the real speed."));
+    ui->menu_tcp_ping->setText(tr("Quick ping (TCP)"));
+    ui->menu_tcp_ping->setToolTip(tr("Only checks that the server port answers. Fast, but a working ping does not guarantee a working server."));
+    ui->toolButton_url_test->setText(tr("Check ping"));
+    ui->toolButton_url_test->setToolTip(tr("Check the ping of all servers in the current group"));
 }

@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include "ui/p3r/P3RWidgets.hpp"
 #include <QPushButton>
+#include <QCheckBox>
 #include <QAction>
 
 #include "main/NekoGui.hpp"
@@ -161,6 +162,12 @@ private:
     // NekoBoxP3R
     P3R::ConnectButton *p3r_connect_button = nullptr;
     int p3r_last_connected = -1;
+    bool p3r_best_pending = false; // waiting for the speed test to pick the fastest server
+    QCheckBox *p3r_auto_best_check = nullptr;
+    void p3r_connect_best();
+    bool p3r_speedtest_running();
+    void p3r_speedtest_finished();
+    void p3r_apply_clear_names();
     void p3r_show_about();
     QAction *p3r_simple_mode_action = nullptr;
     bool p3r_update_dialog_open = false;

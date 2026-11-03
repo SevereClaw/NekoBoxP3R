@@ -1113,6 +1113,116 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Fastest server</source>
+        <translation>Самый быстрый</translation>
+    </message>
+    <message>
+        <source>When on, the CONNECT button first checks the ping of all servers in the current group and connects to the fastest one.
+When off, it connects to the selected server.</source>
+        <translation>Если включено, кнопка ПОДКЛЮЧИТЬСЯ сначала проверяет пинг всех серверов текущей группы и подключается к самому быстрому.
+Если выключено — подключается к выбранному серверу.</translation>
+    </message>
+    <message>
+        <source>Connect to the fastest server</source>
+        <translation>Подключиться к самому быстрому серверу</translation>
+    </message>
+    <message>
+        <source>CHECKING PING...</source>
+        <translation>ПРОВЕРКА ПИНГА...</translation>
+    </message>
+    <message>
+        <source>looking for the fastest server</source>
+        <translation>ищу самый быстрый сервер</translation>
+    </message>
+    <message>
+        <source>to the fastest server</source>
+        <translation>к самому быстрому серверу</translation>
+    </message>
+    <message>
+        <source>This group is archived. Open another group.</source>
+        <translation>Эта группа в архиве. Открой другую группу.</translation>
+    </message>
+    <message>
+        <source>A ping test is already running, wait until it finishes.</source>
+        <translation>Проверка пинга уже идёт, дождись её окончания.</translation>
+    </message>
+    <message>
+        <source>No server answered the ping test. Check your internet connection or update the subscription.</source>
+        <translation>Ни один сервер не ответил на проверку пинга. Проверь интернет или обнови подписку.</translation>
+    </message>
+    <message>
+        <source>Fastest server: %1 (%2 ms)</source>
+        <translation>Самый быстрый сервер: %1 (%2 мс)</translation>
+    </message>
+    <message>
+        <source>VPN for all apps</source>
+        <translation>VPN для всех программ</translation>
+    </message>
+    <message>
+        <source>All traffic of every program on the computer goes through the proxy (TUN mode).
+Use it for games, Discord and apps without proxy settings. Requires administrator rights.</source>
+        <translation>Весь трафик всех программ на компьютере идёт через прокси (режим TUN).
+Подходит для игр, Discord и программ без настроек прокси. Нужны права администратора.</translation>
+    </message>
+    <message>
+        <source>Browser and proxy-aware apps</source>
+        <translation>Браузер и программы с прокси</translation>
+    </message>
+    <message>
+        <source>Only browsers and programs that use the Windows proxy settings go through the proxy.
+Does not need administrator rights. Games and many apps ignore it.</source>
+        <translation>Через прокси идут только браузеры и программы, которые используют настройки прокси Windows.
+Права администратора не нужны. Игры и многие программы этот режим игнорируют.</translation>
+    </message>
+    <message>
+        <source>Traffic mode</source>
+        <translation>Режим работы</translation>
+    </message>
+    <message>
+        <source>Browser and proxy-aware apps only</source>
+        <translation>Только браузер и программы с поддержкой прокси</translation>
+    </message>
+    <message>
+        <source>Off (only the local port %1)</source>
+        <translation>Выключить (только локальный порт %1)</translation>
+    </message>
+    <message>
+        <source>Nothing is redirected automatically. Programs can still use the proxy if you set 127.0.0.1:%1 in them manually.</source>
+        <translation>Ничего не перенаправляется автоматически. Программы могут использовать прокси, если вручную указать в них 127.0.0.1:%1.</translation>
+    </message>
+    <message>
+        <source>Connect to the selected server</source>
+        <translation>Подключиться к выбранному серверу</translation>
+    </message>
+    <message>
+        <source>Disconnect</source>
+        <translation>Отключиться</translation>
+    </message>
+    <message>
+        <source>Check ping (real connection)</source>
+        <translation>Проверить пинг (реальное соединение)</translation>
+    </message>
+    <message>
+        <source>Opens a test page through each server. Slower, but shows the real speed.</source>
+        <translation>Открывает тестовую страницу через каждый сервер. Медленнее, но показывает реальную скорость.</translation>
+    </message>
+    <message>
+        <source>Quick ping (TCP)</source>
+        <translation>Быстрый пинг (TCP)</translation>
+    </message>
+    <message>
+        <source>Only checks that the server port answers. Fast, but a working ping does not guarantee a working server.</source>
+        <translation>Проверяет только, что порт сервера отвечает. Быстро, но ответ не гарантирует, что сервер работает.</translation>
+    </message>
+    <message>
+        <source>Check ping</source>
+        <translation>Проверить пинг</translation>
+    </message>
+    <message>
+        <source>Check the ping of all servers in the current group</source>
+        <translation>Проверить пинг всех серверов текущей группы</translation>
+    </message>
+    <message>
         <source>Sounds</source>
         <translation>Звуки</translation>
     </message>

@@ -111,6 +111,7 @@ namespace NekoGui {
         bool p3r_auto_update = true; // NekoBoxP3R
         bool p3r_sounds = true;      // NekoBoxP3R
         bool p3r_animations = true;  // NekoBoxP3R
+        bool p3r_auto_best = true;   // NekoBoxP3R: connect button picks the fastest server
         int last_started_id = -1; // NekoBoxP3R
         int language = 0;
         QString mw_size = "";

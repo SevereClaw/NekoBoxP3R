@@ -58,6 +58,8 @@ void MainWindow::setup_grpc() {
 inline bool speedtesting = false;
 inline QList<QThread *> speedtesting_threads = {};
 
+bool MainWindow::p3r_speedtest_running() { return speedtesting; }
+
 void MainWindow::speedtest_current_group(int mode, bool test_group) {
     if (speedtesting) {
         MessageBoxWarning(software_name, QObject::tr("The last speed test did not exit completely, please wait. If it persists, please restart the program."));
@@ -240,6 +242,7 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
         lock_return.unlock();
         speedtesting = false;
         MW_show_log(QObject::tr("Speedtest finished."));
+        runOnUiThread([this] { p3r_speedtest_finished(); });
     });
 #endif
 }
