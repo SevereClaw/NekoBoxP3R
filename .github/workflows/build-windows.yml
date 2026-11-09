@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           cd go/cmd/nekobox_core
-          go mod tidy
+          go mod tidy -e
           go vet -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" ./...
           go test -count=1 ./legacy/
       - name: Core tests with a real TUN adapter (Linux)
