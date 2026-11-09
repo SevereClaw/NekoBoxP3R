@@ -194,10 +194,11 @@ type statsFlow struct {
 	downlink *atomic.Int64
 }
 
-func (t *statsFlow) AttachFlow(handle tun.FlowHandle) {}
-func (t *statsFlow) CountForward(n int)               { t.uplink.Add(int64(n)) }
-func (t *statsFlow) CountReverse(n int)               { t.downlink.Add(int64(n)) }
-func (t *statsFlow) FlowEstablished()                 {}
+func (t *statsFlow) AttachFlow(handle tun.FlowHandle)     {}
+func (t *statsFlow) CountForward(n int)                   { t.uplink.Add(int64(n)) }
+func (t *statsFlow) CountReverse(n int)                   { t.downlink.Add(int64(n)) }
+func (t *statsFlow) FlowEstablished()                     {}
+func (t *statsFlow) CloseFlow(reason tun.FlowCloseReason) {}
 
 // ---------- dialing through an instance ----------
 
