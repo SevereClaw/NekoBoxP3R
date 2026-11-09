@@ -42,6 +42,7 @@ namespace NekoGui_sys {
         bool show_stderr = false;
         bool failed_to_start = false;
         bool restarting = false;
+        QStringList stderr_tail; // NekoBoxP3R: last stderr lines, saved to the event journal on a crash
     };
 
     // 手动管理

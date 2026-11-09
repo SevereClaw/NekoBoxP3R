@@ -301,6 +301,16 @@ For more information, see the document &quot;Configuration/DNS&quot;.</string>
               </property>
               <item>
                <property name="text">
+                <string notr="true">https://common.dot.dns.yandex.net/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">77.88.8.8</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
                 <string notr="true">local</string>
                </property>
               </item>

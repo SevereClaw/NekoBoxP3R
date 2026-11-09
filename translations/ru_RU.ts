@@ -1985,6 +1985,14 @@ Changes apply right away (the connection restarts).</source>
         <translation>Текущий сервер снова отвечает.</translation>
     </message>
     <message>
+        <source>VPN core crashed</source>
+        <translation>Ядро VPN упало</translation>
+    </message>
+    <message>
+        <source>The connection dropped for a few seconds, reconnecting automatically.</source>
+        <translation>Связь пропала на несколько секунд, переподключаюсь автоматически.</translation>
+    </message>
+    <message>
         <source>Server switched</source>
         <translation>Сервер переключён</translation>
     </message>

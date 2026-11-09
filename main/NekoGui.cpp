@@ -1,3 +1,5 @@
+#include <QDateTime>
+#include <QMutex>
 #include "NekoGui.hpp"
 #include "fmt/Preset.hpp"
 
@@ -400,6 +402,7 @@ namespace NekoGui {
         NekoGui::dataStore->routing->fn = ROUTES_PREFIX + name;
         auto ok = NekoGui::dataStore->routing->Load();
         if (ok) {
+            P3R_MigrateDirectDns(NekoGui::dataStore->routing.get()); // NekoBoxP3R
             NekoGui::dataStore->active_routing = name;
             NekoGui::dataStore->Save();
         }
@@ -488,4 +491,61 @@ namespace NekoGui {
         return admin;
     };
 
+} // namespace NekoGui
+
+// ======================== NekoBoxP3R: event journal & DNS migration ========================
+
+namespace NekoGui {
+    static QMutex p3r_events_mutex;
+    static QStringList p3r_events_list;
+
+    void P3R_Event(const QString &text) {
+        auto line = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss") + "  " + QString(text).replace('\n', " | ").trimmed();
+        QMutexLocker locker(&p3r_events_mutex);
+        p3r_events_list << line;
+        while (p3r_events_list.size() > 300) p3r_events_list.removeFirst();
+        // persistent copy (cwd is the config folder); rotate at ~256 KB
+        QFile f("p3r_events.log");
+        if (f.exists() && f.size() > 256 * 1024) {
+            QFile::remove("p3r_events.old.log");
+            f.rename("p3r_events.old.log");
+            f.setFileName("p3r_events.log");
+        }
+        if (f.open(QIODevice::Append | QIODevice::Text)) {
+            f.write((line + "\n").toUtf8());
+            f.close();
+        }
+    }
+
+    QStringList P3R_Events(int last) {
+        QMutexLocker locker(&p3r_events_mutex);
+        auto list = p3r_events_list;
+        if (list.isEmpty()) {
+            // fresh start: show the tail of the previous run from the file
+            QFile f("p3r_events.log");
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                list = QString::fromUtf8(f.readAll()).split('\n', Qt::SkipEmptyParts);
+                f.close();
+            }
+        }
+        if (list.size() > last) list = list.mid(list.size() - last);
+        return list;
+    }
+
+    bool P3R_MigrateDirectDns(Routing *routing) {
+        if (routing == nullptr) return false;
+        static const QStringList chinese = {
+            "doh.pub", "223.5.5.5", "223.6.6.6", "alidns.com", "1.12.12.12", "120.53.53.53", "119.29.29.29", "2400:3200::1",
+        };
+        auto dns = routing->direct_dns.trimmed();
+        bool isChinese = false;
+        for (const auto &c: chinese) {
+            if (dns.contains(c, Qt::CaseInsensitive)) isChinese = true;
+        }
+        if (!isChinese) return false;
+        routing->direct_dns = "https://common.dot.dns.yandex.net/dns-query";
+        routing->Save();
+        P3R_Event("Direct DNS changed from " + dns + " to Yandex DoH (Chinese DNS is slow and unstable from Russia)");
+        return true;
+    }
 } // namespace NekoGui

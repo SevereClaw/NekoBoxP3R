@@ -95,6 +95,9 @@ namespace NekoGui_sys {
         });
         connect(this, &QProcess::readyReadStandardError, this, [&]() {
             auto log = readAllStandardError().trimmed();
+            // NekoBoxP3R: keep the tail (a Go panic goes to stderr)
+            for (const auto &line: QString::fromUtf8(log).split('\n', Qt::SkipEmptyParts)) stderr_tail << line.trimmed();
+            while (stderr_tail.size() > 25) stderr_tail.removeFirst();
             if (show_stderr) {
                 MW_show_log(log);
                 return;
@@ -118,6 +121,11 @@ namespace NekoGui_sys {
                 if (failed_to_start) return; // no retry
                 if (restarting) return;
 
+                // NekoBoxP3R: record why the core stopped
+                NekoGui::P3R_Event(QString("Core stopped unexpectedly (exit code %1, %2)").arg(exitCode()).arg(exitStatus() == QProcess::CrashExit ? "crash" : "normal exit"));
+                if (!stderr_tail.isEmpty()) NekoGui::P3R_Event("Core stderr: " + stderr_tail.join(" | ").right(3000));
+                stderr_tail.clear();
+
                 MW_dialog_message("ExternalProcess", "CoreCrashed");
 
                 // Retry rate limit
@@ -125,6 +133,7 @@ namespace NekoGui_sys {
                     if (coreRestartTimer.restart() < 10 * 1000) {
                         coreRestartTimer = QElapsedTimer();
                         MW_show_log("[Error] " + QObject::tr("Core exits too frequently, stop automatic restart this profile."));
+                        NekoGui::P3R_Event("Core exits too frequently, automatic restart stopped");
                         return;
                     }
                 } else {
@@ -134,6 +143,7 @@ namespace NekoGui_sys {
                 // Restart
                 start_profile_when_core_is_up = NekoGui::dataStore->started_id;
                 MW_show_log("[Error] " + QObject::tr("Core exited, restarting."));
+                NekoGui::P3R_Event("Core restarting");
                 setTimeout([=] { Restart(); }, this, 1000);
             }
         });

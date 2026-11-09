@@ -635,6 +635,7 @@ void MainWindow::dialog_message_impl(const QString &sender, const QString &info)
             neko_stop();
         } else if (info == "CoreCrashed") {
             p3r_killswitch_on_crash();
+            if (running != nullptr) p3r_notify(tr("VPN core crashed"), tr("The connection dropped for a few seconds, reconnecting automatically."));
             neko_stop(true);
         } else if (info.startsWith("CoreStarted")) {
             neko_start(info.split(",")[1].toInt());
@@ -2568,6 +2569,7 @@ void MainWindow::p3r_apply_clear_names() {
 
 void MainWindow::p3r_notify(const QString &title, const QString &text) {
     MW_show_log("[NekoBoxP3R] " + title + ": " + QString(text).replace('\n', ' '));
+    NekoGui::P3R_Event(title + ": " + text);
     if (!NekoGui::dataStore->p3r_notifications) return;
     if (tray != nullptr && tray->isVisible()) tray->showMessage(title, text, QSystemTrayIcon::Information, 7000);
 }
@@ -2592,9 +2594,11 @@ void MainWindow::p3r_watchdog_tick() {
                 return;
             }
             if (alive) {
+                if (p3r_fail_count > 0) NekoGui::P3R_Event("Check: the server answers again");
                 p3r_fail_count = 0;
                 return;
             }
+            NekoGui::P3R_Event(QString("Check: %1 did not answer (%2 in a row)").arg(running->bean->DisplayName()).arg(p3r_fail_count + 1));
             if (++p3r_fail_count < 2) return;
             p3r_fail_count = 0;
 
@@ -3980,6 +3984,12 @@ void MainWindow::p3r_show_report() {
     r << "";
     r << "--- Last \"check everything\" ---";
     r << (p3r_last_diag.isEmpty() ? QString("(not run)") : p3r_redact(p3r_last_diag));
+    r << "";
+    r << "--- Events (connects, disconnects, crashes, checks) ---";
+    {
+        auto events = NekoGui::P3R_Events(80);
+        r << (events.isEmpty() ? QString("(none)") : p3r_redact(events.join('\n')));
+    }
     r << "";
     r << "--- Log (last 400 lines) ---";
     auto logLines = ui->masterLogBrowser->toPlainText().split('\n');

@@ -364,6 +364,7 @@ void MainWindow::neko_start(int _id) {
 
         NekoGui::dataStore->UpdateStartedId(ent->id);
         running = ent;
+        NekoGui::P3R_Event("Connected: " + ent->bean->DisplayTypeAndName());
 
         runOnUiThread([=] {
             refresh_status();
@@ -413,6 +414,7 @@ void MainWindow::neko_start(int _id) {
         MW_show_log(">>>>>>>> " + tr("Starting profile %1").arg(ent->bean->DisplayTypeAndName()));
         if (!neko_start_stage2()) {
             MW_show_log("<<<<<<<< " + tr("Failed to start profile %1").arg(ent->bean->DisplayTypeAndName()));
+            NekoGui::P3R_Event("Failed to connect: " + ent->bean->DisplayTypeAndName());
         }
         mu_starting.unlock();
         // cancel timeout
@@ -472,6 +474,7 @@ void MainWindow::neko_stop(bool crash, bool sem) {
         }
 #endif
 
+        NekoGui::P3R_Event(crash ? QString("Disconnected: the core crashed") : QString("Disconnected"));
         NekoGui::dataStore->UpdateStartedId(-1919);
         NekoGui::dataStore->need_keep_vpn_off = false;
         running = nullptr;
