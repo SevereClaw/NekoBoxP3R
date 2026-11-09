@@ -213,6 +213,7 @@ namespace NekoGui {
         _add(new configItem("gid", &gid, itemType::integer));
         _add(new configItem("yc", &latency, itemType::integer));
         _add(new configItem("report", &full_test_report, itemType::string));
+        _add(new configItem("test_err", &test_error, itemType::string)); // NekoBoxP3R
 
         // 可以不关联 bean，只加载 ProxyEntity 的信息
         if (bean != nullptr) {

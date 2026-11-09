@@ -61,12 +61,12 @@ inline QList<QThread *> speedtesting_threads = {};
 bool MainWindow::p3r_speedtest_running() { return speedtesting; }
 
 // NekoBoxP3R: is the running connection alive? (URL test through the current instance)
-bool MainWindow::p3r_test_current(int timeoutMs) {
+bool MainWindow::p3r_test_current(int timeoutMs, const QString &url) {
 #ifndef NKR_NO_GRPC
     libcore::TestReq req;
     req.set_mode(libcore::UrlTest);
     req.set_timeout(timeoutMs);
-    req.set_url(NekoGui::dataStore->test_latency_url.toStdString());
+    req.set_url((url.isEmpty() ? NekoGui::dataStore->test_latency_url : url).toStdString());
     bool rpcOK;
     auto result = defaultClient->Test(&rpcOK, req);
     if (!rpcOK) return true; // core/RPC problem, not a dead server
@@ -183,6 +183,7 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
                         auto c = BuildConfig(profile, true, false);
                         if (!c->error.isEmpty()) {
                             profile->full_test_report = c->error;
+                            profile->test_error = c->error;
                             profile->Save();
                             auto profileId = profile->id;
                             runOnUiThread([this, profileId] {
@@ -241,8 +242,10 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
                     if (result.error().empty()) {
                         profile->latency = result.ms();
                         if (profile->latency == 0) profile->latency = 1; // nekoray use 0 to represents not tested
+                        profile->test_error = "";
                     } else {
                         profile->latency = -1;
+                        profile->test_error = QString::fromStdString(result.error()).left(400); // NekoBoxP3R
                     }
                     profile->full_test_report = result.full_report().c_str(); // higher priority
                     profile->Save();

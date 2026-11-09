@@ -34,6 +34,7 @@ namespace NekoGui {
         std::shared_ptr<NekoGui_traffic::TrafficData> traffic_data = std::make_shared<NekoGui_traffic::TrafficData>("");
 
         QString full_test_report;
+        QString test_error; // NekoBoxP3R: why the last ping test failed (empty = ok / not tested)
 
         ProxyEntity(NekoGui_fmt::AbstractBean *bean, const QString &type_);
 

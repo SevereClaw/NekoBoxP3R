@@ -138,7 +138,7 @@ namespace NekoGui {
         QString system_proxy_format = "";
         QStringList log_ignore = {};
         bool start_minimal = false;
-        int max_log_line = 200;
+        int max_log_line = 5000; // NekoBoxP3R: was 200 (about 10 seconds of traffic in VPN mode)
         QString splitter_state = "";
 
         // Subscription

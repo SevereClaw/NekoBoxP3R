@@ -196,6 +196,11 @@ int main(int argc, char* argv[]) {
     if (!isLoaded) {
         NekoGui::dataStore->Save();
     }
+    // NekoBoxP3R: the old default kept only ~10 seconds of log
+    if (NekoGui::dataStore->max_log_line <= 200) {
+        NekoGui::dataStore->max_log_line = 5000;
+        NekoGui::dataStore->Save();
+    }
 
 #ifdef Q_OS_WIN
     // NekoBoxP3R: run as admin without UAC through the scheduled task

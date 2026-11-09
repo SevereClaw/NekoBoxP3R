@@ -234,7 +234,7 @@ void DialogBasicSettings::accept() {
     D_SAVE_INT(max_log_line)
 
     if (NekoGui::dataStore->max_log_line <= 0) {
-        NekoGui::dataStore->max_log_line = 200;
+        NekoGui::dataStore->max_log_line = 5000;
     }
 
     if (ui->rfsh_r->currentIndex() == 0) {

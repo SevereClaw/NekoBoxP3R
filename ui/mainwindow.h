@@ -176,7 +176,8 @@ private:
     bool p3r_failover_pending = false;
     bool p3r_watchdog_busy = false;
     qint64 p3r_failover_cooldown_until = 0;
-    bool p3r_test_current(int timeoutMs);
+    bool p3r_test_current(int timeoutMs, const QString &url = "");
+    static QString p3r_test_error_reason(const QString &error);
     void p3r_watchdog_tick();
     void p3r_notify(const QString &title, const QString &text);
     // kill switch

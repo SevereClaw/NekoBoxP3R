@@ -1158,6 +1158,7 @@ void MainWindow::refresh_proxy_list_impl_refresh_data(const int &id) {
             f->setText(profile->DisplayLatency());
             f->setData(P3R::LatencyRole, profile->latency);
             f->setData(P3R::GreenRole, NekoGui::dataStore->test_latency_url.startsWith("https://") ? 200 : 100);
+            if (profile->latency < 0 && !profile->test_error.isEmpty()) f->setToolTip(p3r_test_error_reason(profile->test_error) + "\n\n" + profile->test_error);
         } else {
             f->setText(profile->full_test_report);
             // NekoBoxP3R: "Speed: 12.34MiB/s" -> Mbit/s pill
@@ -1448,6 +1449,7 @@ void MainWindow::on_menu_clear_test_result_triggered() {
     for (const auto &profile: get_selected_or_group()) {
         profile->latency = 0;
         profile->full_test_report = "";
+        profile->test_error = "";
         profile->Save();
     }
     refresh_proxy_list();
@@ -2501,8 +2503,10 @@ void MainWindow::p3r_speedtest_finished() {
             p3r_notify(tr("No server responds"), tr("Maybe the internet is down. I will try again in a minute."));
             return;
         }
-        if (running != nullptr && best->id == running->id) {
+        // the current server answered in the full test -> stay, do not reconnect just because another one is faster
+        if (running != nullptr && (best->id == running->id || running->latency > 0)) {
             MW_show_log(tr("The current server responds again."));
+            NekoGui::P3R_Event("Failover: the current server answers again, staying on it");
             return;
         }
         auto oldName = running != nullptr ? running->bean->DisplayName() : QString("?");
@@ -2587,6 +2591,12 @@ void MainWindow::p3r_watchdog_tick() {
     auto id = running->id;
     runOnNewThread([=] {
         bool alive = p3r_test_current(6000);
+        if (!alive) {
+            // one failed request is not a dead server: ask a second, unrelated site before counting it
+            QString second = NekoGui::dataStore->test_latency_url.contains("gstatic.com") ? "http://cp.cloudflare.com/" : "http://www.gstatic.com/generate_204";
+            alive = p3r_test_current(6000, second);
+            if (alive) NekoGui::P3R_Event("Check: the first address did not answer, the second did - the server is alive");
+        }
         runOnUiThread([=] {
             p3r_watchdog_busy = false;
             if (running == nullptr || running->id != id) {
@@ -3911,6 +3921,27 @@ void MainWindow::p3r_apply_layout_mode(bool force) {
 
 // ======================== NekoBoxP3R: problem report ========================
 
+// NekoBoxP3R: turn a core test error into a short human explanation
+QString MainWindow::p3r_test_error_reason(const QString &error) {
+    auto e = error.toLower();
+    if (e.isEmpty()) return {};
+    if (e.contains("no such host") || e.contains("lookup ") || e.contains("dns") || e.contains("resolve"))
+        return tr("The server name could not be resolved (DNS problem).");
+    if (e.contains("refused"))
+        return tr("The server refused the connection: it is off or the port changed. Update the subscription.");
+    if (e.contains("reality") || e.contains("certificate") || e.contains("x509") || e.contains("handshake") || e.contains("tls:"))
+        return tr("The secure handshake failed: wrong keys in the link or the provider interferes with this protocol.");
+    if (e.contains("auth") || e.contains("password") || e.contains("forbidden") || e.contains("unauthorized"))
+        return tr("The server rejected the login: the key or password is outdated. Update the subscription.");
+    if (e.contains("reset") || e.contains("forcibly closed") || e.contains("eof") || e.contains("broken pipe"))
+        return tr("The connection was cut right after it started: this usually means the provider blocks this protocol.");
+    if (e.contains("deadline") || e.contains("timeout") || e.contains("timed out"))
+        return tr("No answer at all: the provider blocks this server or protocol, or the server is off.");
+    if (e.contains("unreachable"))
+        return tr("The network is unreachable: no internet or no route to the server.");
+    return tr("The test failed.");
+}
+
 static QString p3r_redact(QString text) {
     // server addresses and subscription links of this config
     for (const auto &[id, ent]: NekoGui::profileManager->profiles) {
@@ -3979,6 +4010,7 @@ void MainWindow::p3r_show_report() {
             QString lat = p->latency > 0 ? QString("%1 ms").arg(p->latency) : (p->latency < 0 ? "unavailable" : "-");
             r << QString("  #%1 %2 %3 %4%5").arg(p->id).arg(p->bean->DisplayType(), P3R::DetectCountry(p->bean->name), lat,
                                                      p->full_test_report.isEmpty() ? "" : " | " + p3r_redact(p->full_test_report));
+            if (p->latency < 0 && !p->test_error.isEmpty() && p->test_error != p->full_test_report) r << "       error: " + p3r_redact(p->test_error).replace('\n', ' ');
         }
     }
     r << "";
@@ -3991,8 +4023,19 @@ void MainWindow::p3r_show_report() {
         r << (events.isEmpty() ? QString("(none)") : p3r_redact(events.join('\n')));
     }
     r << "";
-    r << "--- Log (last 400 lines) ---";
     auto logLines = ui->masterLogBrowser->toPlainText().split('\n');
+    {
+        // errors survive longer than the traffic lines around them
+        QStringList problems;
+        for (const auto &line: logLines) {
+            if (line.contains("ERROR[") || line.contains("WARN[") || line.contains("FATAL[") || line.contains("PANIC[") || line.contains("[Error]") || line.contains("test error")) problems << line;
+        }
+        if (problems.size() > 150) problems = problems.mid(problems.size() - 150);
+        r << QString("--- Errors and warnings in the log (%1 lines kept, last 150 shown) ---").arg(logLines.size());
+        r << (problems.isEmpty() ? QString("(none)") : p3r_redact(problems.join('\n')));
+        r << "";
+    }
+    r << "--- Log (last 400 lines) ---";
     if (logLines.size() > 400) logLines = logLines.mid(logLines.size() - 400);
     r << p3r_redact(logLines.join('\n'));
     auto report = r.join('\n');

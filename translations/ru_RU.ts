@@ -1993,6 +1993,38 @@ Changes apply right away (the connection restarts).</source>
         <translation>Связь пропала на несколько секунд, переподключаюсь автоматически.</translation>
     </message>
     <message>
+        <source>The server name could not be resolved (DNS problem).</source>
+        <translation>Не удалось узнать адрес сервера (проблема с DNS).</translation>
+    </message>
+    <message>
+        <source>The server refused the connection: it is off or the port changed. Update the subscription.</source>
+        <translation>Сервер отклонил подключение: он выключен или сменился порт. Обнови подписку.</translation>
+    </message>
+    <message>
+        <source>The secure handshake failed: wrong keys in the link or the provider interferes with this protocol.</source>
+        <translation>Не удалось установить защищённое соединение: неверные ключи в ссылке или провайдер мешает этому протоколу.</translation>
+    </message>
+    <message>
+        <source>The server rejected the login: the key or password is outdated. Update the subscription.</source>
+        <translation>Сервер не принял ключ или пароль: они устарели. Обнови подписку.</translation>
+    </message>
+    <message>
+        <source>The connection was cut right after it started: this usually means the provider blocks this protocol.</source>
+        <translation>Соединение оборвали сразу после начала: обычно так провайдер блокирует этот протокол.</translation>
+    </message>
+    <message>
+        <source>No answer at all: the provider blocks this server or protocol, or the server is off.</source>
+        <translation>Ответа нет совсем: провайдер блокирует этот сервер или протокол, либо сервер выключен.</translation>
+    </message>
+    <message>
+        <source>The network is unreachable: no internet or no route to the server.</source>
+        <translation>Сеть недоступна: нет интернета или нет маршрута до сервера.</translation>
+    </message>
+    <message>
+        <source>The test failed.</source>
+        <translation>Проверка не прошла.</translation>
+    </message>
+    <message>
         <source>Server switched</source>
         <translation>Сервер переключён</translation>
     </message>
