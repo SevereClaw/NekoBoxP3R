@@ -228,6 +228,7 @@ int main(int argc, char* argv[]) {
     if (!isLoaded) {
         NekoGui::dataStore->routing->Save();
     }
+    NekoGui::P3R_Event("----- Program started -----"); // NekoBoxP3R
     NekoGui::P3R_MigrateDirectDns(NekoGui::dataStore->routing.get()); // NekoBoxP3R
 
     // Translate

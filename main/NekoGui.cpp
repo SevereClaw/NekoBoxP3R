@@ -519,15 +519,14 @@ namespace NekoGui {
 
     QStringList P3R_Events(int last) {
         QMutexLocker locker(&p3r_events_mutex);
-        auto list = p3r_events_list;
-        if (list.isEmpty()) {
-            // fresh start: show the tail of the previous run from the file
-            QFile f("p3r_events.log");
-            if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                list = QString::fromUtf8(f.readAll()).split('\n', Qt::SkipEmptyParts);
-                f.close();
-            }
+        // the file also holds earlier runs: a drop is often followed by a restart of the program
+        QStringList list;
+        QFile f("p3r_events.log");
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            list = QString::fromUtf8(f.readAll()).split('\n', Qt::SkipEmptyParts);
+            f.close();
         }
+        if (list.isEmpty()) list = p3r_events_list;
         if (list.size() > last) list = list.mid(list.size() - last);
         return list;
     }
