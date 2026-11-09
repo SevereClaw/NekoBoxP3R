@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"grpc_server"
 	"grpc_server/gen"
@@ -12,12 +11,10 @@ import (
 	"github.com/matsuridayo/libneko/neko_log"
 	"github.com/matsuridayo/libneko/speedtest"
 	box "github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/boxapi"
-	boxmain "github.com/sagernet/sing-box/cmd/sing-box"
+	"github.com/sagernet/sing-box/adapter"
 
+	"io"
 	"log"
-
-	"github.com/sagernet/sing-box/option"
 )
 
 type server struct {
@@ -44,18 +41,19 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 		return
 	}
 
-	instance, instance_cancel, err = boxmain.Create([]byte(in.CoreConfig))
-
-	if instance != nil {
-		// Logger
-		instance.SetLogWritter(neko_log.LogWriter)
-		// V2ray Service
-		if in.StatsOutbounds != nil {
-			instance.Router().SetV2RayServer(boxapi.NewSbV2rayServer(option.V2RayStatsServiceOptions{
-				Enabled:   true,
-				Outbounds: in.StatsOutbounds,
-			}))
-		}
+	var tracker *statsTracker
+	var trackerArg adapter.ConnectionTracker
+	if in.StatsOutbounds != nil {
+		tracker = newStatsTracker(in.StatsOutbounds)
+		trackerArg = tracker
+	}
+	var logWriter io.Writer
+	if neko_log.LogWriter != nil {
+		logWriter = neko_log.LogWriter
+	}
+	instance, instance_cancel, err = createBox([]byte(in.CoreConfig), logWriter, trackerArg)
+	if err == nil {
+		instanceStats = tracker
 	}
 
 	return
@@ -79,6 +77,7 @@ func (s *server) Stop(ctx context.Context, in *gen.EmptyReq) (out *gen.ErrorResp
 	instance.Close()
 
 	instance = nil
+	instanceStats = nil
 
 	return
 }
@@ -98,7 +97,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (out *gen.TestResp, 
 		var cancel context.CancelFunc
 		if in.Config != nil {
 			// Test instance
-			i, cancel, err = boxmain.Create([]byte(in.Config.CoreConfig))
+			i, cancel, err = createBox([]byte(in.Config.CoreConfig), nil, nil)
 			if i != nil {
 				defer i.Close()
 				defer cancel()
@@ -114,11 +113,11 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (out *gen.TestResp, 
 			}
 		}
 		// Latency
-		out.Ms, err = speedtest.UrlTest(boxapi.CreateProxyHttpClient(i), in.Url, in.Timeout, speedtest.UrlTestStandard_RTT)
+		out.Ms, err = speedtest.UrlTest(createProxyHttpClient(i), in.Url, in.Timeout, speedtest.UrlTestStandard_RTT)
 	} else if in.Mode == gen.TestMode_TcpPing {
 		out.Ms, err = speedtest.TcpPing(in.Address, in.Timeout)
 	} else if in.Mode == gen.TestMode_FullTest {
-		i, cancel, err := boxmain.Create([]byte(in.Config.CoreConfig))
+		i, cancel, err := createBox([]byte(in.Config.CoreConfig), nil, nil)
 		if i != nil {
 			defer i.Close()
 			defer cancel()
@@ -135,10 +134,8 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (out *gen.TestResp, 
 func (s *server) QueryStats(ctx context.Context, in *gen.QueryStatsReq) (out *gen.QueryStatsResp, _ error) {
 	out = &gen.QueryStatsResp{}
 
-	if instance != nil {
-		if ss, ok := instance.Router().V2RayServer().(*boxapi.SbV2rayServer); ok {
-			out.Traffic = ss.QueryStats(fmt.Sprintf("outbound>>>%s>>>traffic>>>%s", in.Tag, in.Direct))
-		}
+	if instance != nil && instanceStats != nil {
+		out.Traffic = instanceStats.Query(in.Tag, in.Direct)
 	}
 
 	return

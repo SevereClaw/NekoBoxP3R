@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version: "1.26.x"
       - name: Build Go parts
         shell: bash
         run: |
@@ -28,6 +28,46 @@ jobs:
         with:
           name: go-windows64
           path: deployment
+
+  test-core:
+    name: Core tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2022]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: false
+      - name: Get sources
+        shell: bash
+        run: ./libs/get_source.sh
+      - name: Config converter tests
+        shell: bash
+        run: |
+          cd go/cmd/nekobox_core
+          go mod tidy
+          go vet -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" ./...
+          go test -count=1 ./legacy/
+      - name: Core tests with a real TUN adapter (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd go/cmd/nekobox_core
+          go test -c -o /tmp/core.test -ldflags "-checklinkname=0" -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" .
+          sudo P3R_TEST_TUN=1 /tmp/core.test -test.v -test.count=1 -test.timeout 10m
+      - name: Core tests with a real TUN adapter (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          P3R_TEST_TUN: "1"
+        run: |
+          cd go/cmd/nekobox_core
+          go test -v -count=1 -timeout 10m -ldflags "-checklinkname=0" -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" .
 
   build-cpp:
     name: Qt GUI
@@ -76,7 +116,7 @@ jobs:
 
   pack:
     name: Pack zip
-    needs: [build-go, build-cpp]
+    needs: [build-go, build-cpp, test-core]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
