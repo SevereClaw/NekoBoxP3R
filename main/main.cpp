@@ -72,6 +72,7 @@ int main(int argc, char* argv[]) {
     if (QFile::exists("updater.old")) {
         QFile::remove("updater.old");
     }
+    QFile::remove("nekobox.exe.updating"); // NekoBoxP3R: left by the updater if the old instance was still alive
 #ifndef Q_OS_WIN
     if (!QFile::exists("updater")) {
         QFile::link("launcher", "updater");
