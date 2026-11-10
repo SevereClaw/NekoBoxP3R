@@ -1,0 +1,32 @@
+{
+ "log": {"level": "info"},
+ "inbounds": [],
+ "outbounds": [
+  {"type":"hysteria2","tag":"proxy","server":"fi.example.ru","server_port":443,"password":"pw","domain_strategy":"","hop_ports":"20000-30000","hop_interval":10,
+   "tls":{"enabled":true,"server_name":"fi.example.ru","alpn":["h3"]},"obfs":{"type":"salamander","password":"x"}},
+  {"type":"direct","tag":"direct"},
+  {"type":"direct","tag":"bypass"},
+  {"type":"block","tag":"block"}
+ ],
+ "dns": {
+  "servers": [
+   {"tag":"dns-direct","address_resolver":"dns-local","strategy":"","address":"https://common.dot.dns.yandex.net/dns-query","detour":"direct"},
+   {"tag":"dns-local","address":"local","detour":"direct"}
+  ],
+  "rules": [
+   {"outbound":"any","server":"dns-direct"},
+   {"domain":["fi.example.ru"],"domain_suffix":[],"domain_keyword":[],"domain_regex":[],"geosite":[],"server":"dns-direct"}
+  ],
+  "independent_cache": true
+ },
+ "route": {
+  "rules": [
+   {"network":"udp","port":[135,137,138,139,5353],"outbound":"block"},
+   {"ip_cidr":["224.0.0.0/3","ff00::/8"],"outbound":"block"},
+   {"source_ip_cidr":["224.0.0.0/3","ff00::/8"],"outbound":"block"}
+  ],
+  "auto_detect_interface": true,
+  "geoip": {"path":"/x/geoip.db"},
+  "geosite": {"path":"/x/geosite.db"}
+ }
+}
