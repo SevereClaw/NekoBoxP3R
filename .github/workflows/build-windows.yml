@@ -66,6 +66,9 @@ jobs:
         env:
           P3R_TEST_TUN: "1"
         run: |
+          # the TUN adapter hands TCP to a local listener; a fresh test binary has no firewall rule
+          # (the installed nekobox_core.exe gets one from Windows on first start)
+          netsh advfirewall set allprofiles state off
           cd go/cmd/nekobox_core
           go test -v -count=1 -timeout 10m -ldflags "-checklinkname=0" -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" .
 

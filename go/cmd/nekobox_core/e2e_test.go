@@ -167,6 +167,7 @@ func TestMain(m *testing.M) {
 
 func TestStartTestAndStats(t *testing.T) {
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(20 * time.Millisecond) // a local answer in under 1 ms would be reported as "0 ms"
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer target.Close()
@@ -282,10 +283,20 @@ func TestTun(t *testing.T) {
 		t.Fatal("Stop:", stopped.Error)
 	}
 	// the internet must work again without the TUN adapter
+	client.CloseIdleConnections()
 	time.Sleep(2 * time.Second)
-	response, err := client.Get("http://cp.cloudflare.com/")
-	if err != nil {
-		t.Fatal("no internet after the TUN adapter was closed:", err)
+	fresh := &http.Client{Transport: &http.Transport{Proxy: nil, DisableKeepAlives: true}, Timeout: 15 * time.Second}
+	var afterErr error
+	for attempt := 0; attempt < 4; attempt++ {
+		var response *http.Response
+		response, afterErr = fresh.Get("http://cp.cloudflare.com/")
+		if afterErr == nil {
+			response.Body.Close()
+			break
+		}
+		time.Sleep(2 * time.Second)
 	}
-	response.Body.Close()
+	if afterErr != nil {
+		t.Fatal("no internet after the TUN adapter was closed:", afterErr)
+	}
 }
