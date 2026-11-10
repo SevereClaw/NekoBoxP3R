@@ -1,0 +1,48 @@
+{
+ "log": {"level": "info"},
+ "inbounds": [
+  {"tag":"mixed-in","type":"mixed","listen":"127.0.0.1","listen_port":2080,"sniff":true,"sniff_override_destination":false,"domain_strategy":""},
+  {"tag":"tun-in","type":"tun","interface_name":"neko-tun","auto_route":true,"endpoint_independent_nat":true,"mtu":9000,"stack":"mixed","strict_route":false,"inet4_address":"172.19.0.1/28","sniff":true,"sniff_override_destination":false,"domain_strategy":""}
+ ],
+ "outbounds": [
+  {"type":"trojan","tag":"proxy","server":"de.example.ru","server_port":443,"password":"pw","domain_strategy":"",
+   "tls":{"enabled":true,"server_name":"de.example.ru","utls":{"enabled":true,"fingerprint":"chrome"}},
+   "transport":{"type":"ws","path":"/ws","headers":{"Host":"de.example.ru"}}},
+  {"type":"direct","tag":"direct"},
+  {"type":"direct","tag":"bypass"},
+  {"type":"block","tag":"block"},
+  {"type":"dns","tag":"dns-out"}
+ ],
+ "dns": {
+  "servers": [
+   {"tag":"dns-remote","address_resolver":"dns-local","strategy":"","address":"https://dns.google/dns-query","detour":"proxy"},
+   {"tag":"dns-direct","address_resolver":"dns-local","strategy":"","address":"https://common.dot.dns.yandex.net/dns-query","detour":"direct"},
+   {"tag":"dns-block","address":"rcode://success"},
+   {"tag":"dns-local","address":"local","detour":"direct"}
+  ],
+  "rules": [
+   {"outbound":"any","server":"dns-direct"},
+   {"domain":[],"domain_suffix":["openai.com","anthropic.com"],"domain_keyword":[],"domain_regex":[],"geosite":[],"server":"dns-remote"},
+   {"domain":["de.example.ru"],"domain_suffix":["ru","su","xn--p1ai"],"domain_keyword":[],"domain_regex":[],"geosite":["category-ru","category-gov-ru","yandex","vk","mailru"],"server":"dns-direct"},
+   {"query_type":[32,33],"server":"dns-block"},
+   {"domain_suffix":".lan","server":"dns-block"}
+  ],
+  "independent_cache": true
+ },
+ "route": {
+  "rules": [
+   {"protocol":"dns","outbound":"dns-out"},
+   {"domain":[],"domain_suffix":["openai.com","anthropic.com"],"domain_keyword":[],"domain_regex":[],"geosite":[],"outbound":"proxy"},
+   {"process_name":["Discord.exe","firefox.exe"],"outbound":"bypass"},
+   {"domain":[],"domain_suffix":["ru","su","xn--p1ai"],"domain_keyword":[],"domain_regex":[],"geosite":["category-ru","category-gov-ru","yandex","vk","mailru"],"outbound":"bypass"},
+   {"ip_cidr":[],"geoip":["ru"],"outbound":"bypass"},
+   {"network":"udp","port":[135,137,138,139,5353],"outbound":"block"},
+   {"ip_cidr":["224.0.0.0/3","ff00::/8"],"outbound":"block"},
+   {"source_ip_cidr":["224.0.0.0/3","ff00::/8"],"outbound":"block"}
+  ],
+  "auto_detect_interface": true,
+  "geoip": {"path":"/x/geoip.db"},
+  "geosite": {"path":"/x/geosite.db"},
+  "final": "proxy"
+ }
+}
