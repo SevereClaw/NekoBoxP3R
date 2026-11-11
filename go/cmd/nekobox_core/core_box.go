@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	stdjson "encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -9,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -68,6 +71,73 @@ func createBox(configContent []byte, logWriter io.Writer, tracker adapter.Connec
 	if neko_common.Debug {
 		log.Println("Converted config:", string(migrated.Config))
 	}
+
+	// Windows removes a TUN adapter a moment after the previous connection closed it. A new adapter with the
+	// same name made in that moment fails ("create adapter: ... already exists | open existing adapter:
+	// Element not found"), and a crashed core can leave such an adapter stuck. Wait and retry, then use another name.
+	config := migrated.Config
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 700 * time.Millisecond)
+			if attempt >= 2 {
+				if renamed, name, ok := renameTun(migrated.Config, attempt-1); ok {
+					config = renamed
+					log.Println("[tun] the adapter is still held by Windows, using the name", name)
+				}
+			}
+		}
+		created, cancel, err := createBoxOnce(config, logWriter, tracker)
+		if err == nil {
+			return created, cancel, nil
+		}
+		lastErr = err
+		if !isTunAdapterBusy(err) {
+			return nil, nil, err
+		}
+		log.Println("[tun] the adapter is busy, retrying:", err)
+	}
+	return nil, nil, lastErr
+}
+
+func isTunAdapterBusy(err error) bool {
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "create adapter") || strings.Contains(text, "open existing adapter") ||
+		(strings.Contains(text, "tun") && strings.Contains(text, "already exists"))
+}
+
+// renameTun gives the TUN inbound another interface name (another name also means another adapter GUID).
+func renameTun(config []byte, index int) ([]byte, string, bool) {
+	var root map[string]any
+	if err := stdjson.Unmarshal(config, &root); err != nil {
+		return nil, "", false
+	}
+	inbounds, _ := root["inbounds"].([]any)
+	name := ""
+	for _, item := range inbounds {
+		inbound, ok := item.(map[string]any)
+		if !ok || inbound["type"] != "tun" {
+			continue
+		}
+		base, _ := inbound["interface_name"].(string)
+		if base == "" {
+			base = "neko-tun"
+		}
+		name = fmt.Sprintf("%s-%d", base, index+1)
+		inbound["interface_name"] = name
+	}
+	if name == "" {
+		return nil, "", false
+	}
+	out, err := stdjson.Marshal(root)
+	if err != nil {
+		return nil, "", false
+	}
+	return out, name, true
+}
+
+func createBoxOnce(config []byte, logWriter io.Writer, tracker adapter.ConnectionTracker) (*box.Box, context.CancelFunc, error) {
+	migrated := struct{ Config []byte }{config}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = service.ContextWith[deprecated.Manager](ctx, deprecated.NewStderrManager(sblog.StdLogger()))

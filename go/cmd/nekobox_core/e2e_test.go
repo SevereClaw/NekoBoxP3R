@@ -278,6 +278,17 @@ func TestTun(t *testing.T) {
 	}
 	t.Logf("TUN works: %d bytes went up through the proxy", up.Traffic)
 
+	// reconnect right away several times, like a server switch or a double start of the program:
+	// Windows may still be removing the previous adapter
+	config := guiConfig(serverPort, freePort(t), true, false)
+	for i := 0; i < 3; i++ {
+		s.Stop(ctx, &gen.EmptyReq{})
+		again, _ := s.Start(ctx, &gen.LoadConfigReq{CoreConfig: config, StatsOutbounds: []string{"proxy", "bypass"}})
+		if again.Error != "" {
+			t.Fatalf("quick reconnect %d failed: %s", i+1, again.Error)
+		}
+	}
+
 	stopped, _ := s.Stop(ctx, &gen.EmptyReq{})
 	if stopped.Error != "" {
 		t.Fatal("Stop:", stopped.Error)
