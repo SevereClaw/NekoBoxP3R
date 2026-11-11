@@ -2300,7 +2300,10 @@ void MainWindow::p3r_setup() {
     QTimer::singleShot(4000, this, [=] { p3r_check_ip(); });
     auto statusTimer = new QTimer(this);
     statusTimer->setInterval(30 * 1000);
-    connect(statusTimer, &QTimer::timeout, this, [=] { p3r_write_status(); });
+    connect(statusTimer, &QTimer::timeout, this, [=] {
+        p3r_write_status();
+        p3r_measure_ping();
+    });
     statusTimer->start();
 
     // subscriptions: remaining traffic and expiry (tabs + notifications)
@@ -2412,10 +2415,27 @@ void MainWindow::p3r_refresh_connect_button() {
     {
         int rid = connected ? running->id : -1;
         if (rid != p3r_status_last_id) {
-            if (connected && p3r_status_last_id < 0) p3r_connected_since = QDateTime::currentSecsSinceEpoch();
+            if (connected && p3r_status_last_id < 0) {
+                p3r_connected_since = QDateTime::currentSecsSinceEpoch();
+                p3r_traffic_carry_up = p3r_traffic_carry_down = 0;
+            }
+            if (connected && p3r_status_last_id >= 0) { // switched server: keep what the old one carried
+                auto prev = NekoGui::profileManager->GetProfile(p3r_status_last_id);
+                if (prev != nullptr) {
+                    p3r_traffic_carry_up += qMax(0LL, prev->traffic_data->uplink - p3r_traffic_base_up);
+                    p3r_traffic_carry_down += qMax(0LL, prev->traffic_data->downlink - p3r_traffic_base_down);
+                }
+            }
+            if (connected) {
+                p3r_traffic_base_up = running->traffic_data->uplink;
+                p3r_traffic_base_down = running->traffic_data->downlink;
+                p3r_live_ping = 0;
+                QTimer::singleShot(3000, this, [=] { p3r_measure_ping(); });
+            }
             if (!connected) {
                 p3r_connected_since = 0;
                 p3r_exit_country.clear();
+                p3r_live_ping = 0;
             }
             p3r_status_last_id = rid;
             p3r_write_status();
@@ -4087,6 +4107,22 @@ void MainWindow::p3r_show_report() {
 // %APPDATA%\NekoBoxP3R\status.json - read by DiscordMonitror (VPN card in Discord). Updated on every
 // change and every 30 s ("updated"), so a stale file means NekoBoxP3R is closed.
 
+// Real ping through the connected server (same check as "Check ping"), every 30 s while connected.
+void MainWindow::p3r_measure_ping() {
+    if (running == nullptr || p3r_ping_busy || !NekoGui::dataStore->core_running || p3r_speedtest_running()) return;
+    p3r_ping_busy = true;
+    auto id = running->id;
+    runOnNewThread([=] {
+        int ms = p3r_test_current_ms(5000);
+        runOnUiThread([=] {
+            p3r_ping_busy = false;
+            if (running == nullptr || running->id != id || ms == 0) return;
+            p3r_live_ping = ms;
+            p3r_write_status();
+        });
+    });
+}
+
 void MainWindow::p3r_write_status(bool exiting) {
     auto base = qEnvironmentVariable("APPDATA");
     if (base.isEmpty()) base = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
@@ -4109,6 +4145,9 @@ void MainWindow::p3r_write_status(bool exiting) {
         o["type"] = running->bean->DisplayType();
         o["mode"] = NekoGui::dataStore->spmode_vpn ? "vpn" : (NekoGui::dataStore->spmode_system_proxy ? "proxy" : "port");
         o["since"] = p3r_connected_since > 0 ? p3r_connected_since : QDateTime::currentSecsSinceEpoch();
+        o["up"] = p3r_traffic_carry_up + qMax(0LL, running->traffic_data->uplink - p3r_traffic_base_up);
+        o["down"] = p3r_traffic_carry_down + qMax(0LL, running->traffic_data->downlink - p3r_traffic_base_down);
+        if (p3r_live_ping != 0) o["ping"] = p3r_live_ping;
     }
     QSaveFile f(dir.filePath("status.json"));
     if (!f.open(QIODevice::WriteOnly)) return;

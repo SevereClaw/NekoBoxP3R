@@ -177,6 +177,7 @@ private:
     bool p3r_watchdog_busy = false;
     qint64 p3r_failover_cooldown_until = 0;
     bool p3r_test_current(int timeoutMs, const QString &url = "");
+    int p3r_test_current_ms(int timeoutMs); // real ping through the current server, -1 = no answer
     static QString p3r_test_error_reason(const QString &error);
     void p3r_watchdog_tick();
     void p3r_notify(const QString &title, const QString &text);
@@ -291,6 +292,12 @@ public:
     int p3r_status_last_id = -2;
     QString p3r_exit_country; // country of the external IP through the proxy (from "My IP")
     void p3r_write_status(bool exiting = false);
+    // traffic of this connection and live ping - for the VPN card
+    long long p3r_traffic_base_up = 0, p3r_traffic_base_down = 0;  // server counters when we switched to it
+    long long p3r_traffic_carry_up = 0, p3r_traffic_carry_down = 0; // earlier servers of the same session
+    int p3r_live_ping = 0; // ms, -1 = no answer, 0 = not measured yet
+    bool p3r_ping_busy = false;
+    void p3r_measure_ping();
 
 #endif // MW_INTERFACE
 };

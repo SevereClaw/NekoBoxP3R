@@ -76,6 +76,21 @@ bool MainWindow::p3r_test_current(int timeoutMs, const QString &url) {
 #endif
 }
 
+int MainWindow::p3r_test_current_ms(int timeoutMs) {
+#ifndef NKR_NO_GRPC
+    libcore::TestReq req;
+    req.set_mode(libcore::UrlTest);
+    req.set_timeout(timeoutMs);
+    req.set_url(NekoGui::dataStore->test_latency_url.toStdString());
+    bool rpcOK;
+    auto result = defaultClient->Test(&rpcOK, req);
+    if (!rpcOK) return 0;
+    return result.error().empty() && result.ms() > 0 ? int(result.ms()) : -1;
+#else
+    return 0;
+#endif
+}
+
 void MainWindow::speedtest_current_group(int mode, bool test_group) {
     if (speedtesting) {
         MessageBoxWarning(software_name, QObject::tr("The last speed test did not exit completely, please wait. If it persists, please restart the program."));
