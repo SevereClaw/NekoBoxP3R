@@ -3642,7 +3642,10 @@ void MainWindow::p3r_fill_tray_menu() {
         raise();
         activateWindow();
     });
-    auto miniA = m->addAction(tr("Mini mode"), this, [=](bool on) { p3r_set_mini(on); });
+    auto miniA = m->addAction(tr("Mini mode"), this, [=](bool on) {
+        if (on) p3r_set_mini(true);
+        else p3r_hide_mini(); // turning it off only hides the mini window, it does not open the big one
+    });
     miniA->setCheckable(true);
     miniA->setChecked(p3r_mini != nullptr && p3r_mini->isVisible());
     auto profiles = p3r_profiles_load();
@@ -3663,6 +3666,14 @@ void MainWindow::p3r_fill_tray_menu() {
 
 // ======================== NekoBoxP3R: mini mode ========================
 
+void MainWindow::p3r_hide_mini() {
+    // only the mini window goes away; the program keeps working in the tray
+    NekoGui::dataStore->p3r_mini_mode = false;
+    NekoGui::dataStore->Save();
+    if (p3r_mini != nullptr) p3r_mini->hide();
+    p3r_notify(tr("Mini window hidden"), tr("The program keeps working in the tray. Turn the mini window on again from the tray menu."));
+}
+
 void MainWindow::p3r_set_mini(bool on) {
     NekoGui::dataStore->p3r_mini_mode = on;
     NekoGui::dataStore->Save();
@@ -3677,6 +3688,13 @@ void MainWindow::p3r_set_mini(bool on) {
         p3r_mini = new P3R::MiniWindow();
         connect(p3r_mini, &P3R::MiniWindow::toggleClicked, this, [=] { p3r_connect_clicked(); });
         connect(p3r_mini, &P3R::MiniWindow::openMain, this, [=] { p3r_set_mini(false); });
+        connect(p3r_mini, &P3R::MiniWindow::closeClicked, this, [=] { p3r_hide_mini(); });
+        connect(p3r_mini, &P3R::MiniWindow::appearanceChanged, this, [=](int opacity, int scale) {
+            NekoGui::dataStore->p3r_mini_opacity = opacity;
+            NekoGui::dataStore->p3r_mini_scale = scale;
+            NekoGui::dataStore->Save();
+        });
+        p3r_mini->setAppearance(NekoGui::dataStore->p3r_mini_opacity, NekoGui::dataStore->p3r_mini_scale);
         connect(p3r_mini, &P3R::MiniWindow::menuRequested, this, [=](const QPoint &pos) {
             p3r_fill_tray_menu();
             p3r_tray_menu->popup(pos);

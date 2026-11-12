@@ -2025,6 +2025,38 @@ Changes apply right away (the connection restarts).</source>
         <translation>Проверка не прошла.</translation>
     </message>
     <message>
+        <source>Click the button: connect / disconnect
+Drag with the mouse: move
+Shift + mouse wheel: transparency
+Ctrl + mouse wheel: size
+Double click: open the window
+x or middle click: hide (the program stays in the tray)
+Right click: menu</source>
+        <translation>Кнопка: подключить / отключить
+Перетащить мышью: переместить
+Shift + колесо мыши: прозрачность
+Ctrl + колесо мыши: размер
+Двойной клик: открыть окно
+× или клик колесом: скрыть (программа останется в трее)
+Правый клик: меню</translation>
+    </message>
+    <message>
+        <source>Size %1%</source>
+        <translation>Размер %1%</translation>
+    </message>
+    <message>
+        <source>Opacity %1%</source>
+        <translation>Непрозрачность %1%</translation>
+    </message>
+    <message>
+        <source>Mini window hidden</source>
+        <translation>Мини-окно скрыто</translation>
+    </message>
+    <message>
+        <source>The program keeps working in the tray. Turn the mini window on again from the tray menu.</source>
+        <translation>Программа продолжает работать в трее. Вернуть мини-окно можно через меню в трее.</translation>
+    </message>
+    <message>
         <source>Server switched</source>
         <translation>Сервер переключён</translation>
     </message>

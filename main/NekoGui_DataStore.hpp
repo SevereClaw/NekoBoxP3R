@@ -128,6 +128,8 @@ namespace NekoGui {
         QStringList p3r_sub_notified = {}; // NekoBoxP3R: "gid:expire:kind" already notified
         bool p3r_mini_mode = false;        // NekoBoxP3R: mini window instead of the main one
         QString p3r_mini_pos = "";         // NekoBoxP3R: "x,y"
+        int p3r_mini_opacity = 100;        // NekoBoxP3R: percent, Shift + wheel
+        int p3r_mini_scale = 100;          // NekoBoxP3R: percent, Ctrl + wheel
         QString p3r_profiles = "";         // NekoBoxP3R: JSON array of profiles
         QString p3r_active_profile = "";   // NekoBoxP3R: name of the active profile
         bool p3r_sub_auto_migrated = false; // NekoBoxP3R: subscription auto-update turned on once

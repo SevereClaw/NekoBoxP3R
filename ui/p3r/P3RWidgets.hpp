@@ -1,6 +1,8 @@
 // NekoBoxP3R: Persona 3 styled widgets, animations and sounds.
 #pragma once
 
+#include <QTimer>
+
 #include <QPushButton>
 #include <QWidget>
 #include <QDialog>
@@ -97,11 +99,17 @@ namespace P3R {
         // state: 0 disconnected, 1 connected, 2 busy (checking / connecting)
         void setState(int state, const QString &server, const QString &countryCode, const QString &mode);
         void setSpeed(qint64 up, qint64 down);
+        // NekoBoxP3R: Shift + wheel = transparency, Ctrl + wheel = size (both in percent)
+        void setAppearance(int opacityPercent, int scalePercent);
+        int opacityPercent() const { return m_opacity; }
+        int scalePercent() const { return m_scale; }
     signals:
         void toggleClicked();
         void openMain();
+        void closeClicked();
         void menuRequested(const QPoint &globalPos);
         void moved(const QPoint &pos);
+        void appearanceChanged(int opacityPercent, int scalePercent);
 
     protected:
         void paintEvent(QPaintEvent *) override;
@@ -112,9 +120,19 @@ namespace P3R {
         void contextMenuEvent(QContextMenuEvent *) override;
         void enterEvent(QEnterEvent *) override;
         void leaveEvent(QEvent *) override;
+        void wheelEvent(QWheelEvent *) override;
+        void keyPressEvent(QKeyEvent *) override;
 
     private:
+        static constexpr int kBaseW = 340, kBaseH = 72;
         QRectF buttonRect() const;
+        QRectF closeRect() const;
+        QPointF toBase(const QPointF &p) const { return p / (m_scale / 100.0); }
+        void showHint(const QString &text);
+        int m_opacity = 100, m_scale = 100;
+        QString m_hint;
+        QTimer *m_hintTimer = nullptr, *m_saveTimer = nullptr;
+        bool m_pressOnClose = false;
         int m_state = 0;
         QString m_server, m_code, m_mode;
         qint64 m_up = -1, m_down = -1;

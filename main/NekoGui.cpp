@@ -268,6 +268,8 @@ namespace NekoGui {
         _add(new configItem("p3r_sub_notified", &p3r_sub_notified, itemType::stringList));
         _add(new configItem("p3r_mini_mode", &p3r_mini_mode, itemType::boolean));
         _add(new configItem("p3r_mini_pos", &p3r_mini_pos, itemType::string));
+        _add(new configItem("p3r_mini_opacity", &p3r_mini_opacity, itemType::integer));
+        _add(new configItem("p3r_mini_scale", &p3r_mini_scale, itemType::integer));
         _add(new configItem("p3r_profiles", &p3r_profiles, itemType::string));
         _add(new configItem("p3r_active_profile", &p3r_active_profile, itemType::string));
         _add(new configItem("p3r_sub_auto_migrated", &p3r_sub_auto_migrated, itemType::boolean));

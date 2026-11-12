@@ -1,5 +1,7 @@
 // NekoBoxP3R: Persona 3 styled widgets, animations and sounds.
 #include "P3RWidgets.hpp"
+#include <QKeyEvent>
+#include <QWheelEvent>
 
 #include <QApplication>
 #include <QPainter>
@@ -1070,13 +1072,77 @@ namespace P3R {
         setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
         setAttribute(Qt::WA_TranslucentBackground);
         setAttribute(Qt::WA_Hover);
-        setFixedSize(340, 72);
+        setFixedSize(kBaseW, kBaseH);
+        setFocusPolicy(Qt::ClickFocus);
         setWindowTitle("NekoBoxP3R");
-        setToolTip(tr("Click the button: connect / disconnect\nDrag: move\nDouble click: open the window\nRight click: menu"));
+        setToolTip(tr("Click the button: connect / disconnect\nDrag with the mouse: move\nShift + mouse wheel: transparency\nCtrl + mouse wheel: size\nDouble click: open the window\nx or middle click: hide (the program stays in the tray)\nRight click: menu"));
+        m_hintTimer = new QTimer(this);
+        m_hintTimer->setSingleShot(true);
+        connect(m_hintTimer, &QTimer::timeout, this, [=] {
+            m_hint.clear();
+            update();
+        });
+        m_saveTimer = new QTimer(this);
+        m_saveTimer->setSingleShot(true);
+        m_saveTimer->setInterval(600);
+        connect(m_saveTimer, &QTimer::timeout, this, [=] { emit appearanceChanged(m_opacity, m_scale); });
     }
 
+    // all drawing and hit tests use the base size (340 x 72); the window itself is scaled
     QRectF MiniWindow::buttonRect() const {
-        return {6, 8, 78, height() - 16.0};
+        return {6, 8, 78, kBaseH - 16.0};
+    }
+
+    QRectF MiniWindow::closeRect() const {
+        return {kBaseW - 34.0, 6, 24, 20};
+    }
+
+    void MiniWindow::setAppearance(int opacityPercent, int scalePercent) {
+        m_opacity = qBound(20, opacityPercent, 100);
+        m_scale = qBound(50, scalePercent, 250);
+        setWindowOpacity(m_opacity / 100.0);
+        setFixedSize(qRound(kBaseW * m_scale / 100.0), qRound(kBaseH * m_scale / 100.0));
+        update();
+    }
+
+    void MiniWindow::showHint(const QString &text) {
+        m_hint = text;
+        m_hintTimer->start(1200);
+        update();
+    }
+
+    void MiniWindow::wheelEvent(QWheelEvent *e) {
+        auto mods = e->modifiers();
+        int delta = e->angleDelta().y();
+        if (delta == 0) delta = e->angleDelta().x(); // Windows turns Shift + wheel into a horizontal wheel
+        if (delta == 0 || !(mods & (Qt::ShiftModifier | Qt::ControlModifier))) {
+            e->ignore();
+            return;
+        }
+        int steps = delta > 0 ? 1 : -1;
+        if (mods & Qt::ControlModifier) {
+            // keep the point under the cursor in place while the window grows or shrinks
+            auto cursor = e->globalPosition();
+            auto local = toBase(e->position());
+            setAppearance(m_opacity, m_scale + steps * 10);
+            auto newTopLeft = cursor - local * (m_scale / 100.0);
+            move(newTopLeft.toPoint());
+            emit moved(pos());
+            showHint(tr("Size %1%").arg(m_scale));
+        } else {
+            setAppearance(m_opacity + steps * 5, m_scale);
+            showHint(tr("Opacity %1%").arg(m_opacity));
+        }
+        m_saveTimer->start();
+        e->accept();
+    }
+
+    void MiniWindow::keyPressEvent(QKeyEvent *e) {
+        if (e->key() == Qt::Key_Escape) {
+            emit closeClicked();
+            return;
+        }
+        QWidget::keyPressEvent(e);
     }
 
     void MiniWindow::setState(int state, const QString &server, const QString &code, const QString &mode) {
@@ -1097,8 +1163,10 @@ namespace P3R {
     void MiniWindow::paintEvent(QPaintEvent *) {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::TextAntialiasing);
         p.setPen(Qt::NoPen);
-        const qreal w = width(), h = height();
+        p.scale(m_scale / 100.0, m_scale / 100.0);
+        const qreal w = kBaseW, h = kBaseH;
 
         // body: slanted panel with a cyan edge
         QRectF body(4, 4, w - 8, h - 8);
@@ -1171,13 +1239,47 @@ namespace P3R {
         else sub = tr("press the button to connect");
         p.setPen(m_state == 1 ? kCyan : withAlpha(kIce, 170));
         p.drawText(line2, Qt::AlignLeft | Qt::AlignVCenter, sub);
+
+        // hide button, visible on hover
+        if (m_hover) {
+            QRectF x = closeRect();
+            p.setPen(Qt::NoPen);
+            p.setBrush(withAlpha(kDeep, 200));
+            p.drawPolygon(slanted(x, 5));
+            p.setPen(QPen(Qt::white, 2));
+            auto cx = x.center();
+            p.drawLine(QPointF(cx.x() - 4, cx.y() - 4), QPointF(cx.x() + 4, cx.y() + 4));
+            p.drawLine(QPointF(cx.x() + 4, cx.y() - 4), QPointF(cx.x() - 4, cx.y() + 4));
+        }
+
+        // short hint after Shift/Ctrl + wheel
+        if (!m_hint.isEmpty()) {
+            QFont fh("Segoe UI");
+            fh.setItalic(true);
+            fh.setWeight(QFont::Black);
+            fh.setPointSizeF(9);
+            p.setFont(fh);
+            QFontMetricsF fm(fh);
+            QRectF r(0, 0, fm.horizontalAdvance(m_hint) + 24, 22);
+            r.moveCenter(QPointF(w / 2 + 30, h / 2));
+            p.setPen(Qt::NoPen);
+            p.setBrush(withAlpha(kDeep, 235));
+            p.drawPolygon(slanted(r, 6));
+            p.setPen(kCyan);
+            p.drawText(r, Qt::AlignCenter, m_hint);
+        }
     }
 
     void MiniWindow::mousePressEvent(QMouseEvent *e) {
+        if (e->button() == Qt::MiddleButton) {
+            emit closeClicked();
+            return;
+        }
         if (e->button() != Qt::LeftButton) return;
         m_pressPos = e->globalPosition().toPoint();
         m_dragOffset = m_pressPos - frameGeometry().topLeft();
-        m_pressOnButton = buttonRect().contains(e->position());
+        m_pressOnButton = buttonRect().contains(toBase(e->position()));
+        m_pressOnClose = m_hover && closeRect().contains(toBase(e->position()));
         m_dragging = false;
     }
 
@@ -1195,11 +1297,17 @@ namespace P3R {
             emit moved(pos());
             return;
         }
-        if (m_pressOnButton && buttonRect().contains(e->position()) && m_state != 2) emit toggleClicked();
+        auto at = toBase(e->position());
+        if (m_pressOnClose && closeRect().contains(at)) {
+            emit closeClicked();
+            return;
+        }
+        if (m_pressOnButton && buttonRect().contains(at) && m_state != 2) emit toggleClicked();
     }
 
     void MiniWindow::mouseDoubleClickEvent(QMouseEvent *e) {
-        if (!buttonRect().contains(e->position())) emit openMain();
+        auto at = toBase(e->position());
+        if (!buttonRect().contains(at) && !closeRect().contains(at)) emit openMain();
     }
 
     void MiniWindow::contextMenuEvent(QContextMenuEvent *e) {
