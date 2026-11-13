@@ -809,7 +809,6 @@ namespace P3R {
         {"IE", FlagKind::V3, "#169B62", "#FFFFFF", "#FF883E"},
         {"RO", FlagKind::V3, "#002B7F", "#FCD116", "#CE1126"},
         {"MD", FlagKind::V3, "#0046AE", "#FFD200", "#CC092F"},
-        {"CA", FlagKind::V3, "#D80621", "#FFFFFF", "#D80621"},
         {"SE", FlagKind::Cross, "#006AA7", "#FECC00", nullptr},
         {"FI", FlagKind::Cross, "#FFFFFF", "#002F6C", nullptr},
         {"DK", FlagKind::Cross, "#C8102E", "#FFFFFF", nullptr},
@@ -817,6 +816,186 @@ namespace P3R {
         {"JP", FlagKind::Circle, "#FFFFFF", "#BC002D", nullptr},
         {"CH", FlagKind::SwissCross, "#DA291C", "#FFFFFF", nullptr},
     };
+
+    // small 5-point star
+    static QPolygonF starPoly(const QPointF &c, qreal R) {
+        QPolygonF poly;
+        const qreal pi = 3.14159265358979323846;
+        for (int i = 0; i < 10; i++) {
+            qreal a = -pi / 2 + i * pi / 5, rad = (i % 2 == 0) ? R : R * 0.42;
+            poly << QPointF(c.x() + rad * std::cos(a), c.y() + rad * std::sin(a));
+        }
+        return poly;
+    }
+
+    // Union Jack inside rect (used by GB and AU)
+    static void drawUnionJack(QPainter &p, const QRectF &r) {
+        p.fillRect(r, QColor("#012169"));
+        p.save();
+        p.setClipRect(r);
+        qreal h = r.height();
+        p.setPen(QPen(Qt::white, h * 0.30));
+        p.drawLine(r.topLeft(), r.bottomRight());
+        p.drawLine(r.bottomLeft(), r.topRight());
+        p.setPen(QPen(QColor("#C8102E"), h * 0.11));
+        p.drawLine(r.topLeft(), r.bottomRight());
+        p.drawLine(r.bottomLeft(), r.topRight());
+        p.setPen(Qt::NoPen);
+        p.fillRect(QRectF(r.left(), r.center().y() - h * 0.17, r.width(), h * 0.34), Qt::white);
+        p.fillRect(QRectF(r.center().x() - h * 0.17, r.top(), h * 0.34, h), Qt::white);
+        p.fillRect(QRectF(r.left(), r.center().y() - h * 0.10, r.width(), h * 0.20), QColor("#C8102E"));
+        p.fillRect(QRectF(r.center().x() - h * 0.10, r.top(), h * 0.20, h), QColor("#C8102E"));
+        p.restore();
+    }
+
+    // Flags that are not simple stripes. Returns false if the code is unknown here.
+    static bool drawComplexFlag(QPainter &p, const QRectF &r, const QString &code) {
+        const qreal w = r.width(), h = r.height(), x = r.left(), y = r.top();
+        p.setPen(Qt::NoPen);
+        if (code == "US") {
+            for (int i = 0; i < 13; i++)
+                p.fillRect(QRectF(x, y + i * h / 13, w, h / 13 + 0.3), i % 2 == 0 ? QColor("#B22234") : QColor(Qt::white));
+            QRectF canton(x, y, w * 0.42, h * 7 / 13);
+            p.fillRect(canton, QColor("#3C3B6E"));
+            p.setBrush(QColor(255, 255, 255, 230));
+            for (int row = 0; row < 3; row++)
+                for (int col = 0; col < 4; col++)
+                    p.drawEllipse(QPointF(canton.left() + canton.width() * (col + 0.5) / 4 + (row % 2) * canton.width() / 8 - canton.width() / 16,
+                                          canton.top() + canton.height() * (row + 0.5) / 3),
+                                  h * 0.035, h * 0.035);
+            return true;
+        }
+        if (code == "GB") {
+            drawUnionJack(p, r);
+            return true;
+        }
+        if (code == "AU") {
+            p.fillRect(r, QColor("#00008B"));
+            drawUnionJack(p, QRectF(x, y, w / 2, h / 2));
+            p.setBrush(Qt::white);
+            p.drawPolygon(starPoly(QPointF(x + w * 0.25, y + h * 0.75), h * 0.13));
+            for (auto pt: {QPointF(0.75, 0.25), QPointF(0.62, 0.5), QPointF(0.86, 0.45), QPointF(0.75, 0.8)})
+                p.drawPolygon(starPoly(QPointF(x + w * pt.x(), y + h * pt.y()), h * 0.07));
+            return true;
+        }
+        if (code == "CA") {
+            p.fillRect(r, Qt::white);
+            p.fillRect(QRectF(x, y, w / 4, h), QColor("#D80621"));
+            p.fillRect(QRectF(x + w * 3 / 4, y, w / 4 + 0.3, h), QColor("#D80621"));
+            p.setBrush(QColor("#D80621"));
+            p.drawPolygon(starPoly(QPointF(x + w / 2, y + h * 0.47), h * 0.30)); // the maple leaf, simplified
+            p.fillRect(QRectF(x + w / 2 - h * 0.03, y + h * 0.6, h * 0.06, h * 0.22), QColor("#D80621"));
+            return true;
+        }
+        if (code == "TR") {
+            p.fillRect(r, QColor("#E30A17"));
+            p.setBrush(Qt::white);
+            p.drawEllipse(QPointF(x + w * 0.36, y + h / 2), h * 0.25, h * 0.25);
+            p.setBrush(QColor("#E30A17"));
+            p.drawEllipse(QPointF(x + w * 0.41, y + h / 2), h * 0.20, h * 0.20);
+            p.setBrush(Qt::white);
+            p.drawPolygon(starPoly(QPointF(x + w * 0.60, y + h / 2), h * 0.12));
+            return true;
+        }
+        if (code == "KZ") {
+            p.fillRect(r, QColor("#00AFCA"));
+            p.setBrush(QColor("#FEC50C"));
+            p.drawEllipse(QPointF(x + w / 2, y + h * 0.42), h * 0.18, h * 0.18);
+            p.drawRect(QRectF(x + w * 0.3, y + h * 0.72, w * 0.4, h * 0.07));
+            p.fillRect(QRectF(x + w * 0.06, y, w * 0.06, h), QColor(254, 197, 12, 160));
+            return true;
+        }
+        if (code == "KR") {
+            p.fillRect(r, Qt::white);
+            QRectF c(x + w / 2 - h * 0.25, y + h / 2 - h * 0.25, h * 0.5, h * 0.5);
+            p.setBrush(QColor("#CD2E3A"));
+            p.drawPie(c, 0, 180 * 16);
+            p.setBrush(QColor("#0047A0"));
+            p.drawPie(c, 180 * 16, 180 * 16);
+            p.setBrush(Qt::black);
+            for (auto pt: {QPointF(0.16, 0.22), QPointF(0.84, 0.22), QPointF(0.16, 0.78), QPointF(0.84, 0.78)})
+                p.drawRect(QRectF(x + w * pt.x() - h * 0.07, y + h * pt.y() - h * 0.07, h * 0.14, h * 0.14));
+            return true;
+        }
+        if (code == "AE") {
+            p.fillRect(QRectF(x, y, w, h / 3), QColor("#00732F"));
+            p.fillRect(QRectF(x, y + h / 3, w, h / 3), Qt::white);
+            p.fillRect(QRectF(x, y + 2 * h / 3, w, h / 3 + 0.3), Qt::black);
+            p.fillRect(QRectF(x, y, w * 0.25, h), QColor("#FF0000"));
+            return true;
+        }
+        if (code == "IL") {
+            p.fillRect(r, Qt::white);
+            p.fillRect(QRectF(x, y + h * 0.1, w, h * 0.14), QColor("#0038B8"));
+            p.fillRect(QRectF(x, y + h * 0.76, w, h * 0.14), QColor("#0038B8"));
+            p.setPen(QPen(QColor("#0038B8"), qMax<qreal>(0.8, h * 0.06)));
+            p.setBrush(Qt::NoBrush);
+            QPointF c(x + w / 2, y + h / 2);
+            const qreal R = h * 0.2, pi = 3.14159265358979323846;
+            for (int k = 0; k < 2; k++) {
+                QPolygonF tri;
+                for (int i = 0; i < 3; i++) {
+                    qreal a = -pi / 2 + k * pi + i * 2 * pi / 3;
+                    tri << QPointF(c.x() + R * std::cos(a), c.y() + R * std::sin(a));
+                }
+                p.drawPolygon(tri);
+            }
+            p.setPen(Qt::NoPen);
+            return true;
+        }
+        if (code == "IN") {
+            p.fillRect(QRectF(x, y, w, h / 3), QColor("#FF9933"));
+            p.fillRect(QRectF(x, y + h / 3, w, h / 3), Qt::white);
+            p.fillRect(QRectF(x, y + 2 * h / 3, w, h / 3 + 0.3), QColor("#138808"));
+            p.setPen(QPen(QColor("#000080"), qMax<qreal>(0.8, h * 0.05)));
+            p.setBrush(Qt::NoBrush);
+            p.drawEllipse(QPointF(x + w / 2, y + h / 2), h * 0.12, h * 0.12);
+            p.setPen(Qt::NoPen);
+            return true;
+        }
+        if (code == "BR") {
+            p.fillRect(r, QColor("#009C3B"));
+            QPolygonF diamond;
+            diamond << QPointF(x + w / 2, y + h * 0.12) << QPointF(x + w * 0.9, y + h / 2) << QPointF(x + w / 2, y + h * 0.88) << QPointF(x + w * 0.1, y + h / 2);
+            p.setBrush(QColor("#FFDF00"));
+            p.drawPolygon(diamond);
+            p.setBrush(QColor("#002776"));
+            p.drawEllipse(QPointF(x + w / 2, y + h / 2), h * 0.22, h * 0.22);
+            return true;
+        }
+        if (code == "SG") {
+            p.fillRect(QRectF(x, y, w, h / 2), QColor("#EF3340"));
+            p.fillRect(QRectF(x, y + h / 2, w, h / 2 + 0.3), Qt::white);
+            p.setBrush(Qt::white);
+            p.drawEllipse(QPointF(x + w * 0.2, y + h * 0.25), h * 0.15, h * 0.15);
+            p.setBrush(QColor("#EF3340"));
+            p.drawEllipse(QPointF(x + w * 0.24, y + h * 0.25), h * 0.13, h * 0.13);
+            return true;
+        }
+        if (code == "HK") {
+            p.fillRect(r, QColor("#DE2910"));
+            p.setBrush(Qt::white);
+            const qreal pi = 3.14159265358979323846;
+            for (int i = 0; i < 5; i++) {
+                qreal a = -pi / 2 + i * 2 * pi / 5;
+                p.drawEllipse(QPointF(x + w / 2 + h * 0.15 * std::cos(a), y + h / 2 + h * 0.15 * std::sin(a)), h * 0.11, h * 0.11);
+            }
+            return true;
+        }
+        if (code == "GE") {
+            p.fillRect(r, Qt::white);
+            qreal t = h * 0.2;
+            p.fillRect(QRectF(x, y + h / 2 - t / 2, w, t), QColor("#FF0000"));
+            p.fillRect(QRectF(x + w / 2 - t / 2, y, t, h), QColor("#FF0000"));
+            for (auto pt: {QPointF(0.25, 0.25), QPointF(0.75, 0.25), QPointF(0.25, 0.75), QPointF(0.75, 0.75)}) {
+                QPointF c(x + w * pt.x(), y + h * pt.y());
+                p.fillRect(QRectF(c.x() - h * 0.1, c.y() - h * 0.025, h * 0.2, h * 0.05), QColor("#FF0000"));
+                p.fillRect(QRectF(c.x() - h * 0.025, c.y() - h * 0.1, h * 0.05, h * 0.2), QColor("#FF0000"));
+            }
+            return true;
+        }
+        return false;
+    }
 
     static void drawFlag(QPainter &p, const QRectF &r, const QString &code) {
         const FlagSpec *spec = nullptr;
@@ -828,7 +1007,9 @@ namespace P3R {
         QPainterPath clip;
         clip.addRoundedRect(r, 2, 2);
         p.setClipPath(clip);
-        if (spec == nullptr) {
+        if (spec == nullptr && drawComplexFlag(p, r, code)) {
+            // drawn above
+        } else if (spec == nullptr) {
             // unknown flag: slanted badge with the code
             p.setBrush(kBlue);
             p.drawRect(r);
