@@ -115,6 +115,7 @@ namespace NekoGui {
         bool p3r_elevated_task = false; // NekoBoxP3R: relaunch as admin via Task Scheduler (no UAC)
         bool p3r_ru_direct = true;      // NekoBoxP3R: Russian sites bypass the proxy
         bool p3r_ai_via_vpn = true;     // NekoBoxP3R: Gemini, ChatGPT, Claude... always via proxy
+        bool p3r_torrent_direct = true; // NekoBoxP3R: torrent clients and BitTorrent traffic bypass the proxy
         bool p3r_failover = true;       // NekoBoxP3R: switch to the fastest server when the current one dies
         bool p3r_killswitch = false;    // NekoBoxP3R: block internet if VPN drops unexpectedly
         bool p3r_dns_protect = false;   // NekoBoxP3R: strict_route in TUN (off by default: on some systems it blocks all traffic)

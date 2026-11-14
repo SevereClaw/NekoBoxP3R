@@ -727,6 +727,27 @@ namespace NekoGui {
             status->routingRules += rule;
         };
 
+        // NekoBoxP3R: torrents go through the normal connection: VPN servers usually forbid or throttle them,
+        // and peers would see the server address. The client programs by name, plus any BitTorrent traffic
+        // the core recognises (other clients, peer connections, DHT / uTP).
+        if (!status->forTest && dataStore->p3r_torrent_direct) {
+            status->routingRules += QJsonObject{
+                {"process_name", QJsonArray{
+                                     "qbittorrent.exe", "qBittorrent.exe", "uTorrent.exe", "utorrent.exe", "utweb.exe",
+                                     "BitTorrent.exe", "bittorrent.exe", "btweb.exe", "BitComet.exe", "bitcomet.exe",
+                                     "transmission-qt.exe", "transmission-gtk.exe", "transmission-daemon.exe", "Transmission.exe",
+                                     "tixati.exe", "Tixati.exe", "deluge.exe", "deluged.exe", "deluge-gtk.exe", "deluge-console.exe",
+                                     "BiglyBT.exe", "Vuze.exe", "Azureus.exe", "PicoTorrent.exe", "picotorrent.exe",
+                                     "MediaGet.exe", "mediaget.exe", "FrostWire.exe", "WebTorrent.exe", "Motrix.exe",
+                                     "qbittorrent", "transmission-daemon", "deluged"}},
+                {"outbound", "bypass"},
+            };
+            status->routingRules += QJsonObject{
+                {"protocol", "bittorrent"},
+                {"outbound", "bypass"},
+            };
+        }
+
         // NekoBoxP3R: AI services always via proxy - the very first rule, beats per-app and Russian-direct rules
         if (!status->forTest && dataStore->p3r_ai_via_vpn) add_rule_route(P3R_AiDomains(), false, tagProxy);
 

@@ -222,6 +222,7 @@ private:
     // profiles
     QCheckBox *p3r_ru_check = nullptr;
     QCheckBox *p3r_ai_check = nullptr;
+    QCheckBox *p3r_torrent_check = nullptr;
     class QComboBox *p3r_profile_combo = nullptr;
     QJsonArray p3r_profiles_load() const;
     void p3r_profiles_store(const QJsonArray &list);

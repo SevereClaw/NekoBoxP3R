@@ -2018,11 +2018,22 @@ void MainWindow::p3r_setup() {
         NekoGui::dataStore->Save();
         if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
     });
+    auto torrentDirect = new QCheckBox(tr("Torrents directly"), this);
+    p3r_torrent_check = torrentDirect;
+    torrentDirect->setObjectName("p3rTorrentDirect");
+    torrentDirect->setChecked(NekoGui::dataStore->p3r_torrent_direct);
+    torrentDirect->setToolTip(tr("qBittorrent, uTorrent, BitTorrent, Transmission, Tixati, Deluge, BitComet and other torrent clients,\nand any torrent traffic, go through your normal internet, not through the server.\nVPN servers often forbid or slow down torrents."));
+    connect(torrentDirect, &QCheckBox::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_torrent_direct = checked;
+        NekoGui::dataStore->Save();
+        if (NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+    });
     auto optionsCol = new QVBoxLayout;
     optionsCol->setSpacing(2);
     optionsCol->addWidget(p3r_auto_best_check);
     optionsCol->addWidget(ruDirect);
     optionsCol->addWidget(aiVpn);
+    optionsCol->addWidget(torrentDirect);
     auto appsButton = new QPushButton(tr("Apps..."), this);
     p3r_apps_button = appsButton;
     appsButton->setObjectName("p3rAppsButton");
@@ -3756,6 +3767,7 @@ QJsonObject MainWindow::p3r_profile_capture(const QString &name) const {
         {"sysproxy", ds->spmode_system_proxy},
         {"ru_direct", ds->p3r_ru_direct},
         {"ai_via_vpn", ds->p3r_ai_via_vpn},
+        {"torrent_direct", ds->p3r_torrent_direct},
         {"auto_best", ds->p3r_auto_best},
         {"app_mode", ds->p3r_app_mode},
         {"apps", QJsonArray::fromStringList(ds->p3r_app_list)},
@@ -3804,6 +3816,7 @@ void MainWindow::p3r_profile_apply(const QString &name) {
     auto ds = NekoGui::dataStore;
     ds->p3r_ru_direct = prof["ru_direct"].toBool(ds->p3r_ru_direct);
     ds->p3r_ai_via_vpn = prof["ai_via_vpn"].toBool(ds->p3r_ai_via_vpn);
+    ds->p3r_torrent_direct = prof["torrent_direct"].toBool(ds->p3r_torrent_direct);
     ds->p3r_auto_best = prof["auto_best"].toBool(ds->p3r_auto_best);
     ds->p3r_app_mode = prof["app_mode"].toInt(ds->p3r_app_mode);
     QStringList apps;
@@ -3819,7 +3832,7 @@ void MainWindow::p3r_profile_apply(const QString &name) {
     ds->Save();
 
     // UI
-    for (auto pair: QList<QPair<QCheckBox *, bool>>{{p3r_ru_check, ds->p3r_ru_direct}, {p3r_ai_check, ds->p3r_ai_via_vpn}, {p3r_auto_best_check, ds->p3r_auto_best}}) {
+    for (auto pair: QList<QPair<QCheckBox *, bool>>{{p3r_ru_check, ds->p3r_ru_direct}, {p3r_ai_check, ds->p3r_ai_via_vpn}, {p3r_torrent_check, ds->p3r_torrent_direct}, {p3r_auto_best_check, ds->p3r_auto_best}}) {
         if (pair.first == nullptr) continue;
         QSignalBlocker block(pair.first);
         pair.first->setChecked(pair.second);
@@ -4023,7 +4036,7 @@ void MainWindow::p3r_show_report() {
     r << "--- State ---";
     r << "Connected: " + (running != nullptr ? QString("yes, %1 (%2)").arg(running->bean->DisplayType(), P3R::DetectCountry(running->bean->name)) : QString("no"));
     r << "VPN for all apps: " + yes(ds->spmode_vpn) + "   Browser proxy: " + yes(ds->spmode_system_proxy) + "   core running: " + yes(ds->core_running);
-    r << "Russian sites directly: " + yes(ds->p3r_ru_direct) + "   AI and Google via VPN: " + yes(ds->p3r_ai_via_vpn) + "   Fastest server: " + yes(ds->p3r_auto_best);
+    r << "Russian sites directly: " + yes(ds->p3r_ru_direct) + "   AI and Google via VPN: " + yes(ds->p3r_ai_via_vpn) + "   Fastest server: " + yes(ds->p3r_auto_best) + "   Torrents directly: " + yes(ds->p3r_torrent_direct);
     r << QString("Apps mode: %1 (%2 apps: %3)").arg(ds->p3r_app_mode).arg(ds->p3r_app_list.size()).arg(ds->p3r_app_list.join(", "));
     r << "Kill switch: " + yes(ds->p3r_killswitch) + (P3R::KillSwitchActive() ? " (BLOCKING NOW)" : "") + "   Failover: " + yes(ds->p3r_failover) + "   No-UAC task: " + yes(ds->p3r_elevated_task);
     r << "Profile: " + (ds->p3r_active_profile.isEmpty() ? QString("-") : ds->p3r_active_profile) + "   Theme: " + ds->theme + "   Simple mode: " + yes(ds->simple_mode);

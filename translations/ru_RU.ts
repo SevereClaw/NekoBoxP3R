@@ -2057,6 +2057,18 @@ Ctrl + колесо мыши: размер
         <translation>Программа продолжает работать в трее. Вернуть мини-окно можно через меню в трее.</translation>
     </message>
     <message>
+        <source>Torrents directly</source>
+        <translation>Торренты напрямую</translation>
+    </message>
+    <message>
+        <source>qBittorrent, uTorrent, BitTorrent, Transmission, Tixati, Deluge, BitComet and other torrent clients,
+and any torrent traffic, go through your normal internet, not through the server.
+VPN servers often forbid or slow down torrents.</source>
+        <translation>qBittorrent, uTorrent, BitTorrent, Transmission, Tixati, Deluge, BitComet и другие торрент-клиенты,
+а также любой торрент-трафик идут через твой обычный интернет, а не через сервер.
+VPN-серверы часто запрещают или замедляют торренты.</translation>
+    </message>
+    <message>
         <source>Server switched</source>
         <translation>Сервер переключён</translation>
     </message>
