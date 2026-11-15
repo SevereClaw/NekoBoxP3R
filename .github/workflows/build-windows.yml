@@ -59,13 +59,28 @@ jobs:
           cd go/grpc_server
           go mod tidy -e
           go test -count=1 -run 'Update|Checksum|Archive|Api' .
+      - name: Generate configs with the real GUI code (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qt6-base-dev cmake ninja-build >/dev/null
+          cmake -S tests/config_builder -B /tmp/cbt -G Ninja
+          cmake --build /tmp/cbt
+          mkdir -p /tmp/cbt/rule-set
+          for repo in sing-geosite sing-geoip; do
+            git clone -q --depth 1 -b rule-set https://github.com/SagerNet/$repo.git /tmp/$repo-rs
+            cp /tmp/$repo-rs/*.srs /tmp/cbt/rule-set/
+          done
+          /tmp/cbt/config_builder_test /tmp/gui-configs
+          ls /tmp/gui-configs
       - name: Core tests with a real TUN adapter (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           cd go/cmd/nekobox_core
           go test -c -o /tmp/core.test -ldflags "-checklinkname=0" -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" .
-          sudo P3R_TEST_TUN=1 /tmp/core.test -test.v -test.count=1 -test.timeout 10m
+          sudo P3R_TEST_TUN=1 P3R_GUI_CONFIGS=/tmp/gui-configs /tmp/core.test -test.v -test.count=1 -test.timeout 10m
       - name: Core tests with a real TUN adapter (Windows)
         if: runner.os == 'Windows'
         shell: bash
