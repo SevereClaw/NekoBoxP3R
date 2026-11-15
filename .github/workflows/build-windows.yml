@@ -218,6 +218,11 @@ jobs:
           cp -r dl/go-windows64/public_res/* out/nekoray/
           cp -r dl/gui-windows64/* out/nekoray/
           ls -la out/nekoray
+          # what the program cannot start or use HTTPS without
+          for f in Qt6Core.dll Qt6Widgets.dll Qt6Network.dll Qt6Svg.dll platforms/qwindows.dll tls/qschannelbackend.dll imageformats/qsvg.dll \
+                   nekobox.exe nekobox_core.exe updater.exe rule-set/geoip-ru.srs rule-set/geosite-category-ru.srs; do
+            test -f "out/nekoray/$f" || { echo "missing: $f"; exit 1; }
+          done
       - uses: actions/upload-artifact@v7
         with:
           name: NekoBoxP3R-windows64
