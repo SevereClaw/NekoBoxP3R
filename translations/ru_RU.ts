@@ -2073,6 +2073,10 @@ VPN-серверы часто запрещают или замедляют то�
         <translation>Не удалось скачать обновление: нет связи с ядром.</translation>
     </message>
     <message>
+        <source>%1:%2 is not available, this rule item is skipped</source>
+        <translation>%1:%2 недоступен, этот пункт правила пропущен</translation>
+    </message>
+    <message>
         <source>Server switched</source>
         <translation>Сервер переключён</translation>
     </message>

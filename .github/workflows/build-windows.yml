@@ -59,13 +59,28 @@ jobs:
           cd go/grpc_server
           go mod tidy -e
           go test -count=1 -run 'Update|Checksum|Archive|Api' .
+      - name: Generate configs with the real GUI code (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qt6-base-dev cmake ninja-build >/dev/null
+          cmake -S tests/config_builder -B /tmp/cbt -G Ninja
+          cmake --build /tmp/cbt
+          mkdir -p /tmp/cbt/rule-set
+          for repo in sing-geosite sing-geoip; do
+            git clone -q --depth 1 -b rule-set https://github.com/SagerNet/$repo.git /tmp/$repo-rs
+            cp /tmp/$repo-rs/*.srs /tmp/cbt/rule-set/
+          done
+          /tmp/cbt/config_builder_test /tmp/gui-configs
+          ls /tmp/gui-configs
       - name: Core tests with a real TUN adapter (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           cd go/cmd/nekobox_core
           go test -c -o /tmp/core.test -ldflags "-checklinkname=0" -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" .
-          sudo P3R_TEST_TUN=1 /tmp/core.test -test.v -test.count=1 -test.timeout 10m
+          sudo P3R_TEST_TUN=1 P3R_GUI_CONFIGS=/tmp/gui-configs /tmp/core.test -test.v -test.count=1 -test.timeout 10m
       - name: Core tests with a real TUN adapter (Windows)
         if: runner.os == 'Windows'
         shell: bash
@@ -122,10 +137,68 @@ jobs:
         with:
           name: gui-windows64
           path: deployment/windows64
+      - name: Generate configs with the real GUI code (Windows)
+        shell: bash
+        env:
+          CC: cl.exe
+          CXX: cl.exe
+        run: |
+          source libs/env_qtsdk.sh $PWD/qtsdk/Qt
+          cmake -S tests/config_builder -B C:/p3r/cbt -GNinja -DCMAKE_BUILD_TYPE=Release
+          cmake --build C:/p3r/cbt
+          mkdir -p C:/p3r/cbt/rule-set
+          for repo in sing-geosite sing-geoip; do
+            git clone -q --depth 1 -b rule-set https://github.com/SagerNet/$repo.git /c/p3r/$repo-rs
+            cp /c/p3r/$repo-rs/*.srs C:/p3r/cbt/rule-set/
+          done
+          # Qt DLLs and the offscreen platform plugin come from the SDK (PATH / QT_PLUGIN_PATH from env_qtsdk.sh)
+          C:/p3r/cbt/config_builder_test.exe C:/p3r/gui-configs
+          ls C:/p3r/gui-configs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-configs-windows
+          path: C:/p3r/gui-configs
+
+  test-gui-configs-windows:
+    name: GUI configs with TUN (Windows)
+    needs: [build-cpp]
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: gui-configs-windows
+          path: C:/p3r/gui-configs
+      - name: Get sources
+        shell: bash
+        run: ./libs/get_source.sh
+      - name: Rule-sets at the path written into the configs
+        shell: bash
+        run: |
+          mkdir -p C:/p3r/cbt/rule-set
+          for repo in sing-geosite sing-geoip; do
+            git clone -q --depth 1 -b rule-set https://github.com/SagerNet/$repo.git /c/p3r/$repo-rs
+            cp /c/p3r/$repo-rs/*.srs C:/p3r/cbt/rule-set/
+          done
+      - name: Core tests with the GUI configs and a real TUN adapter
+        shell: bash
+        env:
+          P3R_TEST_TUN: "1"
+          P3R_GUI_CONFIGS: C:/p3r/gui-configs
+        run: |
+          netsh advfirewall set allprofiles state off
+          cd go/cmd/nekobox_core
+          go mod tidy -e
+          go test -v -count=1 -timeout 10m -run 'GuiConfig' -ldflags "-checklinkname=0" -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" .
 
   pack:
     name: Pack zip
-    needs: [build-go, build-cpp, test-core]
+    needs: [build-go, build-cpp, test-core, test-gui-configs-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
