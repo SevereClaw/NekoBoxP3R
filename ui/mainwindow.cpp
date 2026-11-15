@@ -4,6 +4,7 @@
 #include "fmt/Preset.hpp"
 #include "db/ProfileFilter.hpp"
 #include "db/ConfigBuilder.hpp"
+#include "db/P3RRuleSets.hpp"
 #include "sub/GroupUpdater.hpp"
 #include "sys/ExternalProcess.hpp"
 #include "sys/AutoRun.hpp"
@@ -2083,6 +2084,20 @@ void MainWindow::p3r_setup() {
     });
     ui->menu_program->insertAction(first, actionCheckUpdate);
     ui->menu_program->insertAction(first, actionAutoUpdate);
+
+    // NekoBoxP3R: fresh lists of sites and IP addresses between releases
+    auto actionRuleSets = new QAction(tr("Update site lists now"), this);
+    actionRuleSets->setToolTip(tr("Downloads fresh lists for \"Russian sites directly\", \"AI and Google via VPN\" and your own geosite / geoip rules"));
+    connect(actionRuleSets, &QAction::triggered, this, [=] { p3r_update_rulesets(true); });
+    auto actionRuleSetsAuto = new QAction(tr("Update site lists automatically"), this);
+    actionRuleSetsAuto->setCheckable(true);
+    actionRuleSetsAuto->setChecked(NekoGui::dataStore->p3r_rulesets_auto);
+    connect(actionRuleSetsAuto, &QAction::toggled, this, [=](bool checked) {
+        NekoGui::dataStore->p3r_rulesets_auto = checked;
+        NekoGui::dataStore->Save();
+    });
+    ui->menu_program->insertAction(first, actionRuleSets);
+    ui->menu_program->insertAction(first, actionRuleSetsAuto);
     ui->menu_program->insertSeparator(first);
 
     auto actionSounds = new QAction(tr("Sounds"), this);
@@ -2326,6 +2341,18 @@ void MainWindow::p3r_setup() {
     });
     subTimer->start();
     QTimer::singleShot(10 * 1000, this, [=] { p3r_check_subscriptions(); });
+
+    // site lists: check every 6 hours, download when the last check is older than 3 days
+    auto ruleSetTimer = new QTimer(this);
+    ruleSetTimer->setInterval(6 * 60 * 60 * 1000);
+    auto ruleSetTick = [=] {
+        if (!NekoGui::dataStore->p3r_rulesets_auto) return;
+        if (QDateTime::currentSecsSinceEpoch() - NekoGui::dataStore->p3r_rulesets_updated < 3 * 24 * 3600) return;
+        p3r_update_rulesets(false);
+    };
+    connect(ruleSetTimer, &QTimer::timeout, this, ruleSetTick);
+    ruleSetTimer->start();
+    QTimer::singleShot(90 * 1000, this, ruleSetTick); // after start-up and connecting
 
     // paste link / subscription: button in the top bar + empty-list screen
     auto pasteButton = new QPushButton(QString::fromUtf8("\uFF0B ") + tr("Paste link"), this);
@@ -3216,6 +3243,39 @@ void MainWindow::p3r_update_group_tabs() {
     }
 }
 
+void MainWindow::p3r_update_rulesets(bool manual) {
+    if (p3r_rulesets_busy) return;
+    if (NekoGui::dataStore->p3r_rulesets_used.isEmpty()) {
+        if (manual) p3r_notify(tr("Site lists"), tr("Connect once first: the program learns which lists your rules use."));
+        return;
+    }
+    p3r_rulesets_busy = true;
+    // which lists still come from the program folder: their path changes after the first download
+    QStringList bundledBefore;
+    for (const auto &tag: NekoGui::dataStore->p3r_rulesets_used) {
+        if (!NekoGui::P3R_RuleSetPath(tag).startsWith(NekoGui::P3R_RuleSetDownloadDir())) bundledBefore << tag;
+    }
+    if (manual) MW_show_log(tr("Updating site lists..."));
+    runOnNewThread([=] {
+        auto result = NekoGui::P3R_RuleSetsUpdate();
+        runOnUiThread([=] {
+            p3r_rulesets_busy = false;
+            auto summary = tr("%1 updated, %2 already fresh").arg(result.updated).arg(result.unchanged);
+            if (!result.failed.isEmpty()) summary += ", " + tr("%1 could not be downloaded").arg(result.failed.size());
+            NekoGui::P3R_Event("Site lists: " + QString("%1 updated, %2 unchanged, %3 failed").arg(result.updated).arg(result.unchanged).arg(result.failed.size()) +
+                               (result.failed.isEmpty() ? QString() : " (" + result.failed.join("; ").left(400) + ")"));
+            for (const auto &f: result.failed) MW_show_log("[Site lists] " + f);
+            bool newPaths = false;
+            for (const auto &tag: bundledBefore) newPaths |= NekoGui::P3R_RuleSetPath(tag).startsWith(NekoGui::P3R_RuleSetDownloadDir());
+            if (manual) {
+                p3r_notify(tr("Site lists"), summary);
+                // lists that were already downloaded are re-read by the core by itself; new files need a reconnect
+                if (newPaths && NekoGui::dataStore->started_id >= 0) neko_start(NekoGui::dataStore->started_id);
+            }
+        });
+    });
+}
+
 void MainWindow::p3r_check_subscriptions() {
     auto &notified = NekoGui::dataStore->p3r_sub_notified;
     bool changed = false;
@@ -4042,6 +4102,16 @@ void MainWindow::p3r_show_report() {
     r << "Profile: " + (ds->p3r_active_profile.isEmpty() ? QString("-") : ds->p3r_active_profile) + "   Theme: " + ds->theme + "   Simple mode: " + yes(ds->simple_mode);
     r << QString("Tun: internal %1, ipv6 %2, strict route %3, mtu %4").arg(yes(ds->vpn_internal_tun), yes(ds->vpn_ipv6), yes(ds->vpn_strict_route)).arg(ds->vpn_mtu);
     r << QString("Inbound: %1:%2   Sub auto-update: %3 min").arg(ds->inbound_address).arg(ds->inbound_socks_port).arg(ds->sub_auto_update);
+    {
+        int downloaded = 0;
+        for (const auto &tag: ds->p3r_rulesets_used) downloaded += NekoGui::P3R_RuleSetPath(tag).startsWith(NekoGui::P3R_RuleSetDownloadDir()) ? 1 : 0;
+        r << QString("Site lists: %1 used, %2 downloaded, %3 from the program   auto-update: %4   last check: %5")
+                 .arg(ds->p3r_rulesets_used.size())
+                 .arg(downloaded)
+                 .arg(ds->p3r_rulesets_used.size() - downloaded)
+                 .arg(yes(ds->p3r_rulesets_auto))
+                 .arg(ds->p3r_rulesets_updated > 0 ? QDateTime::fromSecsSinceEpoch(ds->p3r_rulesets_updated).toString("yyyy-MM-dd HH:mm") : QString("never"));
+    }
     r << "Routing: " + ds->active_routing + "   remote DNS: " + p3r_redact(ds->routing->remote_dns) + "   direct DNS: " + p3r_redact(ds->routing->direct_dns);
     r << "Site rules: direct domains " + QString::number(ds->routing->direct_domain.split('\n', Qt::SkipEmptyParts).size()) +
              ", proxy domains " + QString::number(ds->routing->proxy_domain.split('\n', Qt::SkipEmptyParts).size());

@@ -2,6 +2,7 @@
 #include "db/Database.hpp"
 #include "fmt/includes.h"
 #include "fmt/Preset.hpp"
+#include "db/P3RRuleSets.hpp"
 
 #include <QApplication>
 #include <QFile>
@@ -13,12 +14,6 @@
 #define BOX_UNDERLYING_DNS dataStore->core_box_underlying_dns.isEmpty() ? "local" : dataStore->core_box_underlying_dns
 
 namespace NekoGui {
-
-    // NekoBoxP3R: geosite:xxx / geoip:xx are compiled rule-sets shipped in the "rule-set" folder next to the core
-    // (rule-set/geosite-<code>.srs, rule-set/geoip-<code>.srs). Returns the absolute path, empty if not shipped.
-    static QString P3R_RuleSetPath(const QString &tag) {
-        return FindCoreAsset("rule-set/" + tag + ".srs");
-    }
 
     static bool P3R_HasGeosite(const QString &code) {
         return !P3R_RuleSetPath("geosite-" + code).isEmpty();
@@ -872,6 +867,7 @@ namespace NekoGui {
             }
             routeObj["rule_set"] = ruleSets;
         }
+        if (!status->forTest && !status->forExport) P3R_RuleSetsNoteUsed(ruleSetOrder);
         // addresses of the proxy servers are resolved by the direct DNS (before: the {"outbound": "any"} DNS rule)
         if (!customDns) {
             QJsonObject resolver{{"server", "dns-direct"}};

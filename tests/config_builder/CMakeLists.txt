@@ -10,6 +10,7 @@ set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 add_executable(config_builder_test
         main.cpp
         ${ROOT}/db/ConfigBuilder.cpp
+        ${ROOT}/db/P3RRuleSets.cpp
         ${ROOT}/db/Database.cpp
         ${ROOT}/main/NekoGui.cpp
         ${ROOT}/main/NekoGui_Utils.cpp

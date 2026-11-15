@@ -75,7 +75,8 @@ func createBox(configContent []byte, logWriter io.Writer, tracker adapter.Connec
 	// Windows removes a TUN adapter a moment after the previous connection closed it. A new adapter with the
 	// same name made in that moment fails ("create adapter: ... already exists | open existing adapter:
 	// Element not found"), and a crashed core can leave such an adapter stuck. Wait and retry, then use another name.
-	config := migrated.Config
+	config := useReadableRuleSets(migrated.Config, ruleSetDirs())
+	migrated.Config = config
 	var lastErr error
 	for attempt := 0; attempt < 5; attempt++ {
 		if attempt > 0 {

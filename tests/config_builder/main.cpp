@@ -4,6 +4,7 @@
 #include "db/Database.hpp"
 #include "fmt/includes.h"
 #include "main/NekoGui.hpp"
+#include "db/P3RRuleSets.hpp"
 
 #include <QApplication>
 #include <QDir>
@@ -82,6 +83,18 @@ int main(int argc, char *argv[]) {
     QDir::setCurrent(work.path());
 
     if (dataStore->routing == nullptr) dataStore->routing = std::make_unique<Routing>();
+
+    // config_builder_test --rulesets-update <dir> <tag>...: download fresh rule-sets like the program does
+    if (QString(argv[1]) == "--rulesets-update") {
+        dataStore->p3r_rulesets_used.clear();
+        for (int i = 3; i < argc; i++) dataStore->p3r_rulesets_used << QString::fromLocal8Bit(argv[i]);
+        QDir::setCurrent(QString::fromLocal8Bit(argv[2]));
+        auto result = P3R_RuleSetsUpdate();
+        printf("updated %d unchanged %d failed %d\n", result.updated, result.unchanged, int(result.failed.size()));
+        for (const auto &f: result.failed) printf("  %s\n", qPrintable(f));
+        for (const auto &tag: dataStore->p3r_rulesets_used) printf("  %s -> %s\n", qPrintable(tag), qPrintable(P3R_RuleSetPath(tag)));
+        return result.failed.isEmpty() ? 0 : 1;
+    }
 
     // a group to hold the profiles
     auto group = ProfileManager::NewGroup();
