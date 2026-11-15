@@ -783,12 +783,15 @@ namespace NekoGui {
         if (!status->forTest && dataStore->p3r_ai_via_vpn) add_rule_route(P3R_AiDomains(), false, tagProxy);
 
         // NekoBoxP3R: per-app rules
-        if (!status->forTest && dataStore->p3r_app_mode != 0 && !dataStore->p3r_app_list.isEmpty()) {
-            status->routingRules += QJsonObject{
-                {"process_name", QList2QJsonArray(dataStore->p3r_app_list)},
-                {"outbound", dataStore->p3r_app_mode == 1 ? QString("bypass") : tagProxy},
-            };
-        }
+        //  1 = "these programs directly": before the site rules, a game stays direct whatever it opens
+        //  2 = "only these programs via proxy": after the site rules, so "Russian sites directly" and the
+        //      user's own direct / block / proxy rules still apply inside these programs
+        auto appRule = QJsonObject{
+            {"process_name", QList2QJsonArray(dataStore->p3r_app_list)},
+            {"outbound", dataStore->p3r_app_mode == 1 ? QString("bypass") : tagProxy},
+        };
+        const bool useAppRule = !status->forTest && dataStore->p3r_app_mode != 0 && !dataStore->p3r_app_list.isEmpty();
+        if (useAppRule && dataStore->p3r_app_mode == 1) status->routingRules += appRule;
 
         // final add user rule
         add_rule_route(status->domainListBlock, false, "block");
@@ -812,6 +815,7 @@ namespace NekoGui {
             {"source_ip_cidr", QJsonArray{"224.0.0.0/3", "ff00::/8"}},
             {"action", "reject"},
         };
+        if (useAppRule && dataStore->p3r_app_mode == 2) status->routingRules += appRule;
 
         // tun user rule
         if (tun) {

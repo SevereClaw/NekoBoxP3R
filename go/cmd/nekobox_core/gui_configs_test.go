@@ -222,3 +222,53 @@ func TestGuiConfigTun(t *testing.T) {
 		t.Fatal("the request did not go through the proxy")
 	}
 }
+
+// "Only these programs via proxy": the site options must still apply inside these programs, so the
+// "Russian sites directly", "AI and Google via VPN" and "torrents directly" rules come before the program rule.
+func TestGuiConfigAppsOnlyKeepsSiteOptions(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join(guiConfigDir(t), "apps_only_via_vpn.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root struct {
+		Route struct {
+			Rules []map[string]any `json:"rules"`
+		} `json:"route"`
+	}
+	if err := json.Unmarshal(content, &root); err != nil {
+		t.Fatal(err)
+	}
+	find := func(match func(map[string]any) bool) int {
+		for i, rule := range root.Route.Rules {
+			if match(rule) {
+				return i
+			}
+		}
+		return -1
+	}
+	has := func(rule map[string]any, key, value string) bool {
+		list, _ := rule[key].([]any)
+		for _, item := range list {
+			if item == value {
+				return true
+			}
+		}
+		return false
+	}
+	apps := find(func(r map[string]any) bool { return has(r, "process_name", "Discord.exe") && r["outbound"] == "proxy" })
+	russian := find(func(r map[string]any) bool { return has(r, "rule_set", "geosite-category-ru") && r["outbound"] == "bypass" })
+	russianIP := find(func(r map[string]any) bool { return has(r, "rule_set", "geoip-ru") && r["outbound"] == "bypass" })
+	ai := find(func(r map[string]any) bool { return has(r, "rule_set", "geosite-google") && r["outbound"] == "proxy" })
+	torrents := find(func(r map[string]any) bool { return r["protocol"] == "bittorrent" })
+	if apps < 0 || russian < 0 || russianIP < 0 || ai < 0 || torrents < 0 {
+		t.Fatalf("rules not found: apps %d, russian %d, russian ip %d, ai %d, torrents %d", apps, russian, russianIP, ai, torrents)
+	}
+	for name, index := range map[string]int{"Russian sites": russian, "Russian IP": russianIP, "AI and Google": ai, "torrents": torrents} {
+		if index > apps {
+			t.Errorf("%s rule (#%d) comes after the program rule (#%d): it never applies to these programs", name, index, apps)
+		}
+	}
+	if root.Route.Rules[len(root.Route.Rules)-1]["process_name"] == nil && find(func(r map[string]any) bool { return r["outbound"] == "proxy" && r["process_name"] != nil }) < 0 {
+		t.Error("no program rule")
+	}
+}
