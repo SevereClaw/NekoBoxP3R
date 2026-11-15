@@ -35,7 +35,7 @@ fallbacks:
     https://ftp.fau.de/qtproject
     https://mirror.netcologne.de/qtproject
 INI
-aqt() { python -m aqt "$@"; }
+aqt() { local cmd="$1"; shift; python -m aqt -c aqt.ini "$cmd" "$@"; }
 
 retry() {
   local n
@@ -49,18 +49,22 @@ retry() {
 
 QT_VER=""
 for n in 1 2 3 4; do
-  QT_VER=$(aqt list-qt -c aqt.ini windows desktop --spec "$DL_QT_VER" --latest-version 2>/dev/null | tr -d '\r' | tail -1) && [ -n "$QT_VER" ] && break
+  if aqt list-qt windows desktop --spec "$DL_QT_VER" --latest-version >qtver.txt 2>qterr.txt; then
+    QT_VER=$(tr -d '\r' < qtver.txt | tail -1)
+  fi
+  [ -n "$QT_VER" ] && break
+  cat qterr.txt
   sleep $((n * 15))
 done
 [ -n "$QT_VER" ] || { echo "cannot list Qt versions"; exit 1; }
-QT_ARCH=$(aqt list-qt -c aqt.ini windows desktop --arch "$QT_VER" 2>/dev/null | tr -d '\r' | tr ' ' '\n' | grep -E '^win64_msvc20[0-9]+_64$' | sort | tail -1 || true)
+QT_ARCH=$(aqt list-qt windows desktop --arch "$QT_VER" 2>/dev/null | tr -d '\r' | tr ' ' '\n' | grep -E '^win64_msvc20[0-9]+_64$' | sort | tail -1 || true)
 [ -n "$QT_ARCH" ] || QT_ARCH=win64_msvc2022_64
 echo "Qt $QT_VER ($QT_ARCH)"
 # qtsvg (SVG icons) and qttools (LinguistTools, windeployqt) come with the base package
-retry aqt install-qt -c aqt.ini windows desktop "$QT_VER" "$QT_ARCH" -m qtimageformats --outputdir aqt
+retry aqt install-qt windows desktop "$QT_VER" "$QT_ARCH" -m qtimageformats --outputdir aqt
 QT_DIR=$(ls -d aqt/"$QT_VER"/msvc*_64 | head -1)
 mv "$QT_DIR" Qt
-rm -rf aqt aqt.ini
+rm -rf aqt aqt.ini qtver.txt qterr.txt
 ls Qt/bin | grep -E "^Qt6(Core|Svg|Widgets|Network)\.dll$"
 test -f Qt/bin/windeployqt.exe
 echo "$QT_VER" > Qt/QT_VERSION
