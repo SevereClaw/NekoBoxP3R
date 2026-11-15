@@ -218,6 +218,8 @@ private:
     P3R::MiniWindow *p3r_mini = nullptr;
     void p3r_set_mini(bool on);
     void p3r_hide_mini();
+    void p3r_update_rulesets(bool manual);
+    bool p3r_rulesets_busy = false;
     void p3r_update_mini();
     // profiles
     QCheckBox *p3r_ru_check = nullptr;

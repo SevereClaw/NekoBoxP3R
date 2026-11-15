@@ -2077,6 +2077,38 @@ VPN-серверы часто запрещают или замедляют то�
         <translation>%1:%2 недоступен, этот пункт правила пропущен</translation>
     </message>
     <message>
+        <source>Update site lists now</source>
+        <translation>Обновить списки сайтов</translation>
+    </message>
+    <message>
+        <source>Downloads fresh lists for "Russian sites directly", "AI and Google via VPN" and your own geosite / geoip rules</source>
+        <translation>Скачивает свежие списки для «Российские сайты напрямую», «ИИ и Google через VPN» и твоих правил geosite / geoip</translation>
+    </message>
+    <message>
+        <source>Update site lists automatically</source>
+        <translation>Обновлять списки сайтов автоматически</translation>
+    </message>
+    <message>
+        <source>Site lists</source>
+        <translation>Списки сайтов</translation>
+    </message>
+    <message>
+        <source>Connect once first: the program learns which lists your rules use.</source>
+        <translation>Сначала подключись хотя бы раз: так программа узнает, какие списки нужны твоим правилам.</translation>
+    </message>
+    <message>
+        <source>Updating site lists...</source>
+        <translation>Обновляю списки сайтов...</translation>
+    </message>
+    <message>
+        <source>%1 updated, %2 already fresh</source>
+        <translation>обновлено: %1, уже свежие: %2</translation>
+    </message>
+    <message>
+        <source>%1 could not be downloaded</source>
+        <translation>не удалось скачать: %1</translation>
+    </message>
+    <message>
         <source>Server switched</source>
         <translation>Сервер переключён</translation>
     </message>
