@@ -2069,6 +2069,10 @@ VPN servers often forbid or slow down torrents.</source>
 VPN-серверы часто запрещают или замедляют торренты.</translation>
     </message>
     <message>
+        <source>The update could not be downloaded: no connection to the core.</source>
+        <translation>Не удалось скачать обновление: нет связи с ядром.</translation>
+    </message>
+    <message>
         <source>Server switched</source>
         <translation>Сервер переключён</translation>
     </message>

@@ -587,7 +587,9 @@ void MainWindow::CheckUpdate(bool silent) {
                 request2.set_action(libcore::UpdateAction::Download);
                 auto response2 = NekoGui_rpc::defaultClient->Update(&ok2, request2);
                 runOnUiThread([=] {
-                    if (response2.error().empty()) {
+                    if (!ok2) {
+                        MessageBoxWarning(QObject::tr("Update"), QObject::tr("The update could not be downloaded: no connection to the core."));
+                    } else if (response2.error().empty()) {
                         auto q = QMessageBox::question(nullptr, QObject::tr("Update"),
                                                        QObject::tr("Update is ready, restart to install?"));
                         if (q == QMessageBox::StandardButton::Yes) {

@@ -20,6 +20,10 @@ import (
 
 var update_download_url string
 
+// NekoBoxP3R: checksum and size of the release file from the GitHub API (empty when the check did not use the API)
+var update_api_digest string
+var update_api_size int64
+
 // NekoBoxP3R: set at build time via -ldflags "-X grpc_server.P3RVersion=..."
 var P3RVersion = "0.0.0"
 
@@ -152,6 +156,7 @@ func p3rCheckNoAPI(ctx context.Context, client *http.Client, pre bool, ret *gen.
 		resp.Body.Close()
 	}
 	update_download_url = dl
+	update_api_digest, update_api_size = "", 0
 	ret.AssetsName = name
 	ret.DownloadUrl = dl
 	ret.ReleaseUrl = "https://github.com/" + P3RRepo + "/releases/tag/" + url.PathEscape(tag)
@@ -207,6 +212,8 @@ func (s *BaseServer) Update(ctx context.Context, in *gen.UpdateReq) (*gen.Update
 			Assets  []struct {
 				Name               string `json:"name"`
 				BrowserDownloadUrl string `json:"browser_download_url"`
+				Digest             string `json:"digest"`
+				Size               int64  `json:"size"`
 			} `json:"assets"`
 			Prerelease bool   `json:"prerelease"`
 			Draft      bool   `json:"draft"`
@@ -236,6 +243,8 @@ func (s *BaseServer) Update(ctx context.Context, in *gen.UpdateReq) (*gen.Update
 					return ret, nil // No update
 				}
 				update_download_url = asset.BrowserDownloadUrl
+				update_api_digest = strings.TrimPrefix(strings.ToLower(asset.Digest), "sha256:")
+				update_api_size = asset.Size
 				ret.AssetsName = asset.Name
 				ret.DownloadUrl = asset.BrowserDownloadUrl
 				ret.ReleaseUrl = release.HtmlUrl
@@ -250,27 +259,10 @@ func (s *BaseServer) Update(ctx context.Context, in *gen.UpdateReq) (*gen.Update
 			return ret, nil
 		}
 
-		req, _ := http.NewRequestWithContext(ctx, "GET", update_download_url, nil)
-		resp, err := client.Do(req)
-		if err != nil {
+		if err := p3rDownloadVerified(ctx, client, update_download_url, "../nekoray.zip"); err != nil {
 			ret.Error = err.Error()
 			return ret, nil
 		}
-		defer resp.Body.Close()
-
-		f, err := os.OpenFile("../nekoray.zip", os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			ret.Error = err.Error()
-			return ret, nil
-		}
-		defer f.Close()
-
-		_, err = io.Copy(f, resp.Body)
-		if err != nil {
-			ret.Error = err.Error()
-			return ret, nil
-		}
-		f.Sync()
 	}
 
 	return ret, nil

@@ -53,6 +53,12 @@ jobs:
           go mod tidy -e
           go vet -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0" ./...
           go test -count=1 ./legacy/
+      - name: Update download tests
+        shell: bash
+        run: |
+          cd go/grpc_server
+          go mod tidy -e
+          go test -count=1 -run 'Update|Checksum|Archive|Api' .
       - name: Core tests with a real TUN adapter (Linux)
         if: runner.os == 'Linux'
         shell: bash
@@ -152,7 +158,10 @@ jobs:
           fi
       - name: Zip
         if: steps.ver.outputs.release == 'true'
-        run: cd out && zip -qr ../NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip nekoray
+        run: |
+          cd out && zip -qr ../NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip nekoray
+          cd .. && sha256sum NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip > NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip.sha256
+          cat NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip.sha256
       - name: Release
         if: steps.ver.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
@@ -167,4 +176,6 @@ jobs:
             Чтобы перенести свои серверы, скопируй папку `config` из старой версии; тему выбери в Настройки → Тема → Persona 3.
             Начиная с v0.3.0 программа обновляется сама: Программа → Проверить обновления.
           generate_release_notes: true
-          files: NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip
+          files: |
+            NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip
+            NekoBoxP3R-${{ steps.ver.outputs.tag }}-windows64.zip.sha256
