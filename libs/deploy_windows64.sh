@@ -15,10 +15,11 @@ windeployqt nekobox.exe --no-compiler-runtime --no-system-d3d-compiler --no-open
 rm -rf translations
 rm -rf libEGL.dll libGLESv2.dll Qt6Pdf.dll
 
-if [ "$DL_QT_VER" != "5.15" ]; then
-  cp $SRC_ROOT/qtsdk/Qt/bin/libcrypto-3-x64.dll .
-  cp $SRC_ROOT/qtsdk/Qt/bin/libssl-3-x64.dll .
-fi
+# OpenSSL: the old prebuilt Qt had it; official Qt 6 uses the Windows TLS (Schannel) plugin instead
+for dll in libcrypto-3-x64.dll libssl-3-x64.dll; do
+  if [ -f "$SRC_ROOT/qtsdk/Qt/bin/$dll" ]; then cp "$SRC_ROOT/qtsdk/Qt/bin/$dll" .; fi
+done
+ls tls 2>/dev/null || true
 
 popd
 
