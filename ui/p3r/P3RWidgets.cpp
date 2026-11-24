@@ -1169,19 +1169,25 @@ namespace P3R {
         m_anim->setEndValue(1.0);
         connect(m_anim, &QVariantAnimation::valueChanged, this, [=](const QVariant &v) {
             m_t = v.toReal();
+            update();
             if (m_t >= 0.68 && !m_revealed) {
                 m_revealed = true;
-                emit reveal(); // show the main window under the fading splash
+                // show the main window under the fading splash, after this frame is drawn,
+                // not from inside the animation tick
+                QTimer::singleShot(0, this, [=] { sendReveal(); });
             }
-            update();
         });
         connect(m_anim, &QVariantAnimation::finished, this, [=] {
-            if (!m_revealed) {
-                m_revealed = true;
-                emit reveal();
-            }
+            m_revealed = true;
+            sendReveal(); // in case the queued one has not run yet
             close();
         });
+    }
+
+    void Splash::sendReveal() {
+        if (m_revealSent) return;
+        m_revealSent = true;
+        emit reveal();
     }
 
     void Splash::start() {

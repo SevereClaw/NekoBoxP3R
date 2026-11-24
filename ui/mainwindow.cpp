@@ -2934,6 +2934,15 @@ void MainWindow::p3r_show_main_window() {
         show();
         return;
     }
+    // Warm up the main window before the splash starts. The first show() polishes every
+    // widget with the style sheet, lays the window out, creates the native window and paints
+    // it all for the first time; done at the moment of the reveal, that froze the splash
+    // for a moment right in its fade-out. Done here, nothing is moving on screen yet.
+    setWindowOpacity(0.0);
+    ensurePolished();
+    if (layout() != nullptr) layout()->activate();
+    winId(); // create the native window now, not at show()
+    grab();  // first paint: style sheet images, fonts, the server table
     auto splash = new P3R::Splash(QPixmap(":/neko/nekobox.png"));
     connect(splash, &P3R::Splash::reveal, this, [=] {
         setWindowOpacity(0.0);

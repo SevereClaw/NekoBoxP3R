@@ -37,9 +37,11 @@ namespace P3R {
         void mousePressEvent(QMouseEvent *) override;
 
     private:
+        void sendReveal();
         QPixmap m_icon;
         qreal m_t = 0;
-        bool m_revealed = false;
+        bool m_revealed = false;    // reveal queued
+        bool m_revealSent = false;  // reveal emitted
         QVariantAnimation *m_anim;
     };
 
